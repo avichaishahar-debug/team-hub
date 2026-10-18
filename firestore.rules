@@ -90,6 +90,11 @@ service cloud.firestore {
     // ---- מפגשים ----
     match /meetups/{id} {
       allow read: if linked() || isOwner();
+      // כל חבר מקושר מעדכן רק את אישור ההגעה של עצמו
+      allow update: if linked()
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rsvp'])
+                    && request.resource.data.get('rsvp', {}).diff(resource.data.get('rsvp', {})).affectedKeys().hasOnly([myId()])
+                    && request.resource.data.rsvp[myId()] in ['yes', 'maybe', 'no'];
       allow create, update: if isManager() && str(request.resource.data.name, 80)
                     && request.resource.data.days is int && request.resource.data.days >= 1 && request.resource.data.days <= 14;
       allow delete: if isManager();

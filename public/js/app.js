@@ -44,7 +44,7 @@ const fire = p => { Promise.resolve(p).catch(e => toast(friendly(e), true)); };
 const S = {
   phase: 'loading', error: '', authUser: null, linkId: null,
   members: [], meetups: [], expenses: [], payments: [], me: null, pending: false, fromCache: false, online: navigator.onLine,
-  view: 'home', meetupId: null, tab: 'exp', day: 1,
+  view: 'home', meetupId: null, tab: 'info', day: 1,
   newMeetup: false, editMeetup: false, confirm: '',
   formOpen: false, draft: null, editExp: null, openExp: null, showAll: false,
   editMember: null, addMember: false, open: {}, bulkResult: '', installEvt: null, restored: false
@@ -140,7 +140,7 @@ function render() {
   const app = $('app'), nav = $('nav');
   if (S.phase !== 'ready') { nav.hidden = true; app.innerHTML = gateView(); return; }
   nav.hidden = false;
-  nav.innerHTML = [['home', 'בית', ICON.home], ['expenses', 'הוצאות', ICON.wallet], ['bdays', 'ימי הולדת', ICON.cake], ['team', 'צוות', ICON.team]].map(([k, l, i]) =>
+  nav.innerHTML = [['home', 'בית', ICON.home], ['expenses', 'מפגשים', ICON.wallet], ['bdays', 'ימי הולדת', ICON.cake], ['team', 'צוות', ICON.team]].map(([k, l, i]) =>
     '<button data-a="nav" data-v="' + k + '"' + (S.view === k ? ' aria-current="page"' : '') + '>' + i + '<span>' + l + '</span></button>').join('');
   app.innerHTML = topbar() + (S.online ? '' : '<div class="offline">אין חיבור. אפשר להמשיך, והשינויים יישלחו כשהחיבור יחזור</div>') +
     (S.view === 'team' ? teamView() : S.view === 'bdays' ? bdaysView() : S.view === 'expenses' ? expensesView() : dashView());
@@ -170,7 +170,7 @@ function gateView() {
 function topbar() {
   const st = !S.online ? 'מחוץ לרשת' : S.pending ? 'שומר…' : (S.fromCache ? 'מרענן…' : '✓ נשמר');
   const cls = (S.pending || S.fromCache || !S.online) ? 'busy' : '';
-  return '<div class="top"><h1>' + ({ team: 'הצוות', expenses: 'הוצאות מפגשים', bdays: 'ימי הולדת' }[S.view] || 'צוות גולדפרב') + '</h1><div class="row"><span id="sync" class="' + cls + '">' + st + '</span>' +
+  return '<div class="top"><h1>' + ({ team: 'הצוות', expenses: 'מפגשים', bdays: 'ימי הולדת' }[S.view] || 'צוות גולדפרב') + '</h1><div class="row"><span id="sync" class="' + cls + '">' + st + '</span>' +
     '<button class="avatar" data-a="nav" data-v="team" aria-label="הפרופיל שלי"' + avs(S.me && S.me.name) + '>' + esc(initial(S.me && S.me.name)) + '</button></div></div>';
 }
 
@@ -267,17 +267,20 @@ function meetupView() {
   const editForm = (canEdit() && S.editMeetup) ?
     '<form class="card" data-form="edit-meetup"><div class="grid"><label>שם<input id="ee-name" value="' + esc(ev.name) + '" required maxlength="80"></label>' +
     '<label>תאריך התחלה<input type="date" id="ee-date" value="' + esc(ev.startDate) + '" required></label>' +
-    '<label>מספר ימים<input type="number" id="ee-days" min="1" max="' + MAX_DAYS + '" value="' + ev.days + '" required></label></div>' +
+    '<label>מספר ימים<input type="number" id="ee-days" min="1" max="' + MAX_DAYS + '" value="' + ev.days + '" required></label>' +
+    '<label>שעת התחלה<input type="time" id="ee-time" value="' + esc(ev.time || '') + '"></label>' +
+    '<label>מיקום<input id="ee-place" value="' + esc(ev.place || '') + '" maxlength="120"></label></div>' +
+    '<label>הערות ופרטים<textarea id="ee-notes" rows="3" maxlength="600">' + esc(ev.notes || '') + '</textarea></label>' +
     '<div class="row"><button class="btn primary" type="submit">שמירה</button><button class="btn" type="button" data-a="edit-meetup-toggle">ביטול</button>' +
     '<button class="btn danger' + (S.confirm === 'del-meetup' ? ' sure' : '') + '" type="button" data-a="del-meetup">' + (S.confirm === 'del-meetup' ? 'בטוח? מחיקת המפגש וכל הוצאותיו' : 'מחיקת מפגש') + '</button></div></form>' : '';
   const stats = '<div class="strip"><div class="mini"><span>סה״כ</span><strong>' + fmt(r.total) + '</strong></div>' +
     '<div class="mini"><span>משתתפים</span><strong>' + r.attendees + '</strong></div>' +
     '<div class="mini"><span>ליום-אדם</span><strong>' + (r.personDays ? fmt(perDay) : '—') + '</strong></div></div>';
-  const tabs = '<div class="tabs" role="tablist">' + [['exp', 'הוצאות (' + ex.length + ')'], ['ppl', 'נוכחות'], ['set', 'התחשבנות']].map(t =>
+  const tabs = '<div class="tabs" role="tablist">' + [['info', 'פרטים'], ['ppl', 'נוכחות'], ['exp', 'הוצאות (' + ex.length + ')'], ['set', 'התחשבנות']].map(t =>
     '<button class="tab" role="tab" data-a="tab" data-t="' + t[0] + '" aria-selected="' + (S.tab === t[0]) + '">' + t[1] + '</button>').join('') + '</div>';
-  const body = S.tab === 'exp' ? expTab(ev, ex) : S.tab === 'ppl' ? pplTab(ev) : setTab(ev, r);
+  const body = S.tab === 'info' ? infoTab(ev) : S.tab === 'exp' ? expTab(ev, ex) : S.tab === 'ppl' ? pplTab(ev) : setTab(ev, r);
   const fab = (S.tab === 'exp' && !S.formOpen) ? '<button class="btn primary fab" data-a="open-form">＋ הוספת הוצאה</button>' : '';
-  return head + editForm + ((S.tab === 'exp' && S.formOpen) ? '' : stats) + tabs + body + fab;
+  return head + editForm + ((S.tab === 'exp' && S.formOpen) || S.tab === 'info' ? '' : stats) + tabs + body + fab;
 }
 
 /* ----- טופס הוצאה (טיוטה בזיכרון, כך שעדכון ברקע לא מוחק מה שהוקלד) ----- */
@@ -351,6 +354,31 @@ function expTab(ev, ex) {
 }
 
 /* ----- נוכחות: בוחרים יום ומסמנים מי הגיע ----- */
+/* ---------- פרטי מפגש + אישורי הגעה ---------- */
+const RSVP = [['yes', 'מגיע/ה', '✓'], ['maybe', 'אולי', '?'], ['no', 'לא מגיע/ה', '✗']];
+function icsFor(ev) {
+  const d = s => s.replace(/-/g, ''), end = d(addDays(ev.startDate, ev.days));
+  const t = ev.time ? ev.time.replace(':', '') + '00' : '';
+  const esc2 = s => String(s || '').replace(/[\\,;]/g, c => '\\' + c).replace(/\n/g, '\\n');
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//goldfarb-team//he', 'BEGIN:VEVENT', 'UID:' + ev.id + '@team-hub',
+    'DTSTAMP:' + new Date().toISOString().replace(/[-:]|\.\d+/g, ''),
+    t ? 'DTSTART:' + d(ev.startDate) + 'T' + t : 'DTSTART;VALUE=DATE:' + d(ev.startDate), t ? 'DTEND:' + d(addDays(ev.startDate, ev.days - 1)) + 'T235900' : 'DTEND;VALUE=DATE:' + end,
+    'SUMMARY:' + esc2(ev.name), ev.place ? 'LOCATION:' + esc2(ev.place) : '', ev.notes ? 'DESCRIPTION:' + esc2(ev.notes) : '', 'END:VEVENT', 'END:VCALENDAR'].filter(Boolean).join('\r\n');
+}
+function infoTab(ev) {
+  const rs = ev.rsvp || {}, mine = S.me && rs[S.me.id];
+  const by = k => S.members.filter(m => rs[m.id] === k);
+  const none = S.members.filter(m => !rs[m.id]);
+  const rows = [['תאריכים', range(ev) + ' · ' + ev.days + ' ימים'], ev.time && ['שעה', ev.time], ev.place && ['מיקום', ev.place]].filter(Boolean)
+    .map(r => '<div class="kv"><span class="muted">' + r[0] + '</span><b>' + esc(r[1]) + '</b></div>').join('');
+  const notes = ev.notes ? '<p class="notes">' + esc(ev.notes) + '</p>' : '';
+  const nav = ev.place ? '<a class="btn sm" target="_blank" rel="noopener" href="https://waze.com/ul?q=' + encodeURIComponent(ev.place) + '">ניווט ב-Waze</a>' : '';
+  const mineBtns = S.me ? '<div class="seg">' + RSVP.map(r => '<button class="btn' + (mine === r[0] ? ' primary' : '') + '" data-a="rsvp" data-v="' + r[0] + '">' + r[2] + ' ' + r[1] + '</button>').join('') + '</div>' : '';
+  const list = RSVP.map(r => by(r[0]).length ? '<p><b>' + r[1] + ' (' + by(r[0]).length + '):</b> <span class="muted">' + by(r[0]).map(m => esc(m.name)).join(', ') + '</span></p>' : '').join('');
+  return '<div class="card">' + rows + notes + '<div class="row">' + nav + '<button class="btn sm" data-a="ics">הוספה ליומן</button></div></div>' +
+    '<div class="card"><h3>אישור הגעה</h3>' + mineBtns + list + (none.length ? '<details class="opt"><summary>עוד לא ענו (' + none.length + ')</summary><p class="muted small">' + none.map(m => esc(m.name)).join(', ') + '</p></details>' : '') + '</div>';
+}
+
 function pplTab(ev) {
   const mem = sortedMembers();
   if (S.day < 1 || S.day > ev.days) S.day = 1;
@@ -479,8 +507,13 @@ document.addEventListener('click', async ev => {
   else if (a === 'signout') { await backend.signOut(); }
   else if (a === 'reload') { location.reload(); }
   else if (a === 'goto-bday') { S.view = 'team'; render(); window.scrollTo(0, 0); const i = $('my-bday'); if (i) { i.focus({ preventScroll: true }); i.scrollIntoView({ block: 'center' }); } }
-  else if (a === 'open-meetup') { S.view = 'expenses'; store('thLast', id); Object.assign(S, { meetupId: id, tab: 'exp', editExp: null, formOpen: false, draft: null, openExp: null, showAll: false, day: 1, confirm: '', editMeetup: false }); render(); window.scrollTo(0, 0); }
+  else if (a === 'open-meetup') { S.view = 'expenses'; store('thLast', id); Object.assign(S, { meetupId: id, tab: 'info', editExp: null, formOpen: false, draft: null, openExp: null, showAll: false, day: 1, confirm: '', editMeetup: false }); render(); window.scrollTo(0, 0); }
   else if (a === 'open-settle') { S.view = 'expenses'; store('thLast', id); Object.assign(S, { meetupId: id, tab: 'set', editExp: null, formOpen: false, draft: null, openExp: null, confirm: '', editMeetup: false }); render(); window.scrollTo(0, 0); }
+  else if (a === 'rsvp') { const e = curMeetup(); if (e && S.me) fire(backend.patchMeetup(e.id, { ['rsvp.' + S.me.id]: b.dataset.v })); }
+  else if (a === 'ics') {
+    const e = curMeetup(), url = URL.createObjectURL(new Blob([icsFor(e)], { type: 'text/calendar' })), l = document.createElement('a');
+    l.href = url; l.download = 'meetup.ics'; document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
   else if (a === 'pay-toggle') {
     const d = b.dataset, pid = d.meetup + '__' + d.from + '__' + d.to, cents = Number(d.cents);
     const cur = S.payments.find(x => x.id === pid);
@@ -501,7 +534,7 @@ document.addEventListener('click', async ev => {
   else if (a === 'nav') { S.view = b.dataset.v; render(); window.scrollTo(0, 0); if (S.view === 'team' && isAdmin()) loadLinked(); }
   else if (a === 'install') { if (S.installEvt) { S.installEvt.prompt(); S.installEvt = null; render(); } }
   else if (a === 'install-hide') { store('thInstallDismissed', '1'); render(); }
-  else if (a === 'open') { store('thLast', id); Object.assign(S, { meetupId: id, tab: 'exp', editExp: null, formOpen: false, draft: null, openExp: null, showAll: false, day: 1, confirm: '', editMeetup: false }); render(); window.scrollTo(0, 0); }
+  else if (a === 'open') { store('thLast', id); Object.assign(S, { meetupId: id, tab: 'info', editExp: null, formOpen: false, draft: null, openExp: null, showAll: false, day: 1, confirm: '', editMeetup: false }); render(); window.scrollTo(0, 0); }
   else if (a === 'back') { S.meetupId = null; render(); }
   else if (a === 'tab') { S.tab = b.dataset.t; render(); }
   else if (a === 'new-toggle') { S.newMeetup = !S.newMeetup; render(); }
@@ -589,7 +622,7 @@ document.addEventListener('submit', async ev => {
     const e = curMeetup(), name = clean1(v('ee-name')), days = Math.round(Number(v('ee-days')));
     if (!name) { toast('חסר שם מפגש', true); return; }
     if (!(days >= 1 && days <= MAX_DAYS)) { toast('מספר הימים חייב להיות בין 1 ל-' + MAX_DAYS, true); return; }
-    const patch = { name, startDate: v('ee-date'), days };
+    const patch = { name, startDate: v('ee-date'), days, time: v('ee-time') || null, place: clean1(v('ee-place')) || null, notes: v('ee-notes').trim() || null };
     for (let d = days + 1; d <= e.days; d++) patch['attendance.' + d] = null;      // קיצור מפגש מוחק נוכחות בימים שנחתכו
     fire(backend.patchMeetup(e.id, patch)); S.editMeetup = false; if (S.day > days) S.day = 1; toast('נשמר'); render();
   }

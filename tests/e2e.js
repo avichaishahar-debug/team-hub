@@ -74,6 +74,9 @@ assert.equal(att['1'].length, 17); assert.equal(att['2'].length, 16); assert.equ
 assert.ok(!att['2'].includes(await memId('יאיר רינגל')) && !att['3'].includes(await memId('עופר שכטר')) && att['3'].includes(await memId('גיל מזור')));
 await p.screenshot({ path: 'shot_attendance.png' });
 
+// ---- פרטי מפגש: אישור הגעה ----
+await p.click('[data-a="tab"][data-t="info"]'); await p.click('[data-a="rsvp"][data-v="yes"]'); await sleep(900);
+assert.equal(Object.values((await fake()).d.meetups[0].rsvp)[0], 'yes');
 // ---- expenses: collapsed form, draft survives re-render, optimistic list ----
 await p.click('[data-a="tab"][data-t="exp"]');
 assert.equal(await p.locator('form[data-form="exp"]').count(), 0); assert.ok(await p.locator('.fab').isVisible());
