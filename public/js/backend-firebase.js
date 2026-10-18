@@ -30,8 +30,17 @@ export const backend = {
   async signIn() {
     const p = new GoogleAuthProvider();
     p.setCustomParameters({ prompt: 'select_account' });
-    try { await signInWithRedirect(auth, p); }          // הדרך הטובה בטלפון, כשהאתר מתארח ב-Firebase Hosting
-    catch (e) { await signInWithPopup(auth, p); }
+    // חלון קופץ קודם: בדפדפנים מודרניים (Safari/Chrome) redirect חוזר למסך ההתחברות
+    // כשהאתר (web.app) ודומיין ההתחברות (firebaseapp.com) שונים, בגלל חלוקת האחסון.
+    try { await signInWithPopup(auth, p); }
+    catch (e) {
+      const c = e && e.code;
+      if (c === 'auth/popup-blocked' || c === 'auth/operation-not-supported-in-this-environment' || c === 'auth/web-storage-unsupported') {
+        await signInWithRedirect(auth, p);
+      } else if (c !== 'auth/popup-closed-by-user' && c !== 'auth/cancelled-popup-request') {
+        throw e;
+      }
+    }
   },
   signOut: () => fbSignOut(auth),
 
