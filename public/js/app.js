@@ -395,7 +395,7 @@ function feedbackBlock(ev) {
     '<label>נקודות לשיפור<textarea id="fb-improve" maxlength="500" rows="2">' + esc(mine.improve || '') + '</textarea></label>' +
     '<label>מחמאות למארגן<textarea id="fb-praise" maxlength="500" rows="2">' + esc(mine.praise || '') + '</textarea></label>' +
     '<button class="btn primary" type="submit">' + (mine.score ? 'עדכון חוות דעת' : 'שליחת חוות דעת') + '</button></form>' : '';
-  return '<div class="card"><h3>איך היה המפגש?</h3>' + summary + form + '<p class="muted small">המשובים מוצגים לכולם בלי שמות.</p></div>' +
+  return '<details class="card" data-k="fbform"' + (opened('fbform') ? ' open' : '') + '><summary><b>איך היה המפגש?</b> <span class="muted small">' + (n ? avg.toFixed(1) + ' ★ · ' + n + ' דירגו' : 'עוד אין דירוגים') + '</span></summary>' + summary + form + '<p class="muted small">המשובים מוצגים לכולם בלי שמות.</p></details>' +
     ((lst('praise', '👏 מחמאות למארגן') + lst('improve', '🛠 נקודות לשיפור')) ? '<div class="card">' + lst('praise', '👏 מחמאות למארגן') + lst('improve', '🛠 נקודות לשיפור') + '</div>' : '');
 }
 function infoTab(ev) {
