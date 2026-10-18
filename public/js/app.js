@@ -367,7 +367,7 @@ function teamView() {
     '<form data-form="bulk"><textarea id="bulk-text" dir="auto" placeholder="גיל מזור, gil@gmail.com"></textarea><div class="row" style="margin-top:8px"><button class="btn primary" type="submit">עדכון מיילים</button></div></form>' + (S.bulkResult ? '<p class="small" style="white-space:pre-wrap">' + esc(S.bulkResult) + '</p>' : '') + '</details>';
   const imp = !isAdmin() ? '' : '<details class="card" data-k="imp"' + (opened('imp') ? ' open' : '') + '><summary>ייבוא מהגיליון הישן</summary><p class="muted small">ב-Apps Script של הגרסה הקודמת מריצים את <b>exportForMigration</b>, מעתיקים את ה-JSON מהיומן, ומדביקים כאן. אפשר לייבא שוב בלי ליצור כפילויות.</p>' +
     '<form data-form="import"><textarea id="imp-text" dir="ltr" placeholder="{ &quot;members&quot;: [...], ... }"></textarea><div class="row" style="margin-top:8px"><button class="btn primary" type="submit">ייבוא</button></div></form></details>';
-  return profile + '<div class="card"><div class="bar"><h3>חברי הצוות (' + mem.length + ')</h3></div><ul class="list">' + rows + '</ul></div>' + addForm + joinCard + bulk + imp;
+  return profile + '<details class="card" data-k="members"' + (opened('members', !canEdit()) || S.editMember ? ' open' : '') + '><summary><h3 style="display:inline">חברי הצוות (' + mem.length + ')</h3></summary><ul class="list">' + rows + '</ul></details>' + addForm + joinCard + bulk + imp;
 }
 
 /* ---------- ייבוא מהגיליון הישן ---------- */

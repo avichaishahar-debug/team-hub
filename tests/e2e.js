@@ -31,6 +31,7 @@ async function open(user, opts = {}) {
   return p;
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+const openMembers = async pg => { await pg.evaluate(() => { const d = document.querySelector('details[data-k="members"]'); if (d && !d.open) { d.open = true; d.dispatchEvent(new Event('toggle')); } }); };
 
 /* ===== 1. בעל המערכת: כניסה ראשונה ===== */
 let p = await open(OWNER);
@@ -126,9 +127,9 @@ assert.ok((await p.textContent('details[data-k="bulk"]')).includes('מישהו �
 await p.fill('#my-bday', '1982-03-09'); await p.dispatchEvent('#my-bday', 'change'); await sleep(900);
 assert.equal((await fake()).d.members.find(m => m.name === 'אביחי שחר').birthday, '1982-03-09');
 // make Yaron a manager (admin only), then remove-protection for a used member
-await p.click('[data-a="em-edit"][data-id="' + await memId('ירון פורת') + '"]'); await p.selectOption('#em-role', 'manager'); await p.click('form[data-form="edit-member"] button[type=submit]'); await sleep(900);
+await openMembers(p); await p.click('[data-a="em-edit"][data-id="' + await memId('ירון פורת') + '"]'); await p.selectOption('#em-role', 'manager'); await p.click('form[data-form="edit-member"] button[type=submit]'); await sleep(900);
 assert.equal((await fake()).d.members.find(m => m.name === 'ירון פורת').role, 'manager');
-await p.click('[data-a="em-edit"][data-id="' + await memId('גיל מזור') + '"]'); await p.click('[data-a="rm-member"]'); await p.waitForSelector('#toast .err');   // used in expenses
+await openMembers(p); await p.click('[data-a="em-edit"][data-id="' + await memId('גיל מזור') + '"]'); await p.click('[data-a="rm-member"]'); await p.waitForSelector('#toast .err');   // used in expenses
 await p.click('[data-a="em-cancel"]');
 await p.screenshot({ path: 'shot_team.png', fullPage: true });
 
