@@ -383,7 +383,23 @@ function icsFor(ev) {
     t ? 'DTSTART:' + d(ev.startDate) + 'T' + t : 'DTSTART;VALUE=DATE:' + d(ev.startDate), t ? 'DTEND:' + d(addDays(ev.startDate, ev.days - 1)) + 'T235900' : 'DTEND;VALUE=DATE:' + end,
     'SUMMARY:' + esc2(ev.name), ev.place ? 'LOCATION:' + esc2(ev.place) : '', ev.notes ? 'DESCRIPTION:' + esc2(ev.notes) : '', 'END:VEVENT', 'END:VCALENDAR'].filter(Boolean).join('\r\n');
 }
+const isPast = ev => addDays(ev.startDate, ev.days - 1) < isoDate();
+const stars = n => '★'.repeat(n) + '☆'.repeat(5 - n);
+function feedbackBlock(ev) {
+  const fb = ev.feedback || {}, all = Object.values(fb), mine = S.me && fb[S.me.id] || {};
+  const n = all.length, avg = n ? all.reduce((s, x) => s + x.score, 0) / n : 0;
+  const summary = '<div class="fb-sum"><span class="fb-avg">' + (n ? avg.toFixed(1) : '—') + '</span><span class="stars">' + stars(Math.round(avg)) + '</span><span class="muted small">' + n + ' דירגו מתוך ' + S.members.length + '</span></div>';
+  const lst = (k, title) => { const t = all.filter(x => x[k]); return t.length ? '<h4>' + title + '</h4>' + t.map(x => '<p class="fb-item">' + esc(x[k]) + '</p>').join('') : ''; };
+  const form = S.me ? '<form class="fb-form" data-form="feedback"><div class="fb-stars">' + [1, 2, 3, 4, 5].map(i =>
+      '<label><input type="radio" name="fbs" value="' + i + '"' + (mine.score === i ? ' checked' : '') + '><span>★</span></label>').join('') + '</div>' +
+    '<label>נקודות לשיפור<textarea id="fb-improve" maxlength="500" rows="2">' + esc(mine.improve || '') + '</textarea></label>' +
+    '<label>מחמאות למארגן<textarea id="fb-praise" maxlength="500" rows="2">' + esc(mine.praise || '') + '</textarea></label>' +
+    '<button class="btn primary" type="submit">' + (mine.score ? 'עדכון חוות דעת' : 'שליחת חוות דעת') + '</button></form>' : '';
+  return '<div class="card"><h3>איך היה המפגש?</h3>' + summary + form + '<p class="muted small">המשובים מוצגים לכולם בלי שמות.</p></div>' +
+    ((lst('praise', '👏 מחמאות למארגן') + lst('improve', '🛠 נקודות לשיפור')) ? '<div class="card">' + lst('praise', '👏 מחמאות למארגן') + lst('improve', '🛠 נקודות לשיפור') + '</div>' : '');
+}
 function infoTab(ev) {
+  const past = isPast(ev);
   const rs = ev.rsvp || {}, mine = S.me && rs[S.me.id];
   const by = k => S.members.filter(m => rs[m.id] === k);
   const none = S.members.filter(m => !rs[m.id]);
@@ -393,6 +409,7 @@ function infoTab(ev) {
   const nav = ev.place ? '<a class="btn sm" target="_blank" rel="noopener" href="https://waze.com/ul?q=' + encodeURIComponent(ev.place) + '">ניווט ב-Waze</a>' : '';
   const mineBtns = S.me ? '<div class="seg">' + RSVP.map(r => '<button class="btn' + (mine === r[0] ? ' primary' : '') + '" data-a="rsvp" data-v="' + r[0] + '">' + r[2] + ' ' + r[1] + '</button>').join('') + '</div>' : '';
   const list = RSVP.map(r => by(r[0]).length ? '<p><b>' + r[1] + ' (' + by(r[0]).length + '):</b> <span class="muted">' + by(r[0]).map(m => esc(m.name)).join(', ') + '</span></p>' : '').join('');
+  if (past) return '<div class="card">' + rows + notes + '</div>' + feedbackBlock(ev);
   return '<div class="card">' + rows + notes + '<div class="row">' + nav + '<button class="btn sm" data-a="ics">הוספה ליומן</button></div></div>' +
     '<div class="card"><h3>אישור הגעה</h3>' + mineBtns + list + (none.length ? '<details class="opt"><summary>עוד לא ענו (' + none.length + ')</summary><p class="muted small">' + none.map(m => esc(m.name)).join(', ') + '</p></details>' : '') + '</div>';
 }
@@ -641,6 +658,13 @@ document.addEventListener('submit', async ev => {
     // המפגש עוד לא הגיע מהמאזין: מציגים אותו מיד
     if (!S.meetups.some(x => x.id === m.id)) S.meetups.push(m);
     render();
+  }
+  else if (k === 'feedback') {
+    const e = curMeetup(), r = document.querySelector('input[name="fbs"]:checked');
+    if (!e || !S.me) return;
+    if (!r) { toast('בחרו ציון בכוכבים', true); return; }
+    const o = { score: Number(r.value), improve: v('fb-improve').trim().slice(0, 500), praise: v('fb-praise').trim().slice(0, 500) };
+    fire(backend.patchMeetup(e.id, { ['feedback.' + S.me.id]: o })); toast('תודה על המשוב'); 
   }
   else if (k === 'edit-meetup') {
     const e = curMeetup(), name = clean1(v('ee-name')), days = Math.round(Number(v('ee-days')));

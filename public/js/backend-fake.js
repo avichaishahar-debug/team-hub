@@ -47,7 +47,8 @@ export function makeFake({ delay = 0, user = null, rulesRole = null } = {}) {
       api.calls.push('patchMeetup');
       const m = data.meetups.find(x => x.id === id); if (!m) return Promise.reject(new Error('missing'));
       Object.keys(patch).forEach(k => {
-        if (k.startsWith('rsvp.')) { m.rsvp = m.rsvp || {}; m.rsvp[k.slice(5)] = patch[k]; }
+        if (k.startsWith('feedback.')) { m.feedback = m.feedback || {}; m.feedback[k.slice(9)] = patch[k]; }
+        else if (k.startsWith('rsvp.')) { m.rsvp = m.rsvp || {}; m.rsvp[k.slice(5)] = patch[k]; }
         else if (k.startsWith('attendance.')) { const d = k.slice(11); if (patch[k] === null) delete m.attendance[d]; else m.attendance[d] = patch[k]; }
         else if (patch[k] === null) delete m[k]; else m[k] = patch[k];
       });

@@ -80,6 +80,14 @@ assert.ok(await p.locator('.top button.avatar img').count() === 1);
 // ---- פרטי מפגש: אישור הגעה ----
 await p.click('[data-a="tab"][data-t="info"]'); await p.click('[data-a="rsvp"][data-v="yes"]'); await sleep(900);
 assert.equal(Object.values((await fake()).d.meetups[0].rsvp)[0], 'yes');
+// ---- מפגש שכבר היה: משוב במקום יומן ואישור הגעה ----
+await p.evaluate(() => window.__fake.patchMeetup(window.__fake.data.meetups[0].id, { startDate: '2026-01-01', days: 3 })); await sleep(600);
+assert.equal(await p.locator('[data-a="ics"]').count(), 0); assert.equal(await p.locator('[data-a="rsvp"]').count(), 0);
+await p.click('.fb-stars label:nth-child(4)'); await p.fill('#fb-praise', 'ארגון מעולה'); await p.fill('#fb-improve', 'יותר מים');
+await p.click('form[data-form="feedback"] button[type=submit]'); await sleep(900);
+const fb0 = Object.values((await fake()).d.meetups[0].feedback)[0]; assert.equal(fb0.score, 4); assert.equal(fb0.praise, 'ארגון מעולה');
+assert.ok((await p.textContent('#app')).includes('4.0'));
+await p.evaluate(() => window.__fake.patchMeetup(window.__fake.data.meetups[0].id, { startDate: '2026-11-05', days: 3 })); await sleep(600);
 // ---- expenses: collapsed form, draft survives re-render, optimistic list ----
 await p.click('[data-a="tab"][data-t="exp"]');
 assert.equal(await p.locator('form[data-form="exp"]').count(), 0); assert.ok(await p.locator('.fab').isVisible());
