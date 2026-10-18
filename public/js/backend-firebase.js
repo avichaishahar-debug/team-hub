@@ -125,10 +125,15 @@ export const backend = {
 
   /** כתיבה בצרור (ייבוא). ops: [{c:'members'|'meetups'|'expenses', id, data}] */
   async batchSet(ops) {
-    for (let i = 0; i < ops.length; i += 400) {
-      const b = writeBatch(db);
-      ops.slice(i, i + 400).forEach(o => b.set(doc(db, o.c, o.id), clean({ ...o.data, createdAt: o.data.createdAt ? new Date(o.data.createdAt) : serverTimestamp() })));
-      await b.commit();
+    // חברים ← מפגשים ← הוצאות, כל שלב בצרור נפרד שמסתיים לפני הבא:
+    // כלל האבטחה של הוצאה בודק שהמפגש כבר קיים, ובתוך אותו צרור הוא עדיין לא נחשב קיים.
+    for (const c of ['members', 'meetups', 'expenses']) {
+      const part = ops.filter(o => o.c === c);
+      for (let i = 0; i < part.length; i += 400) {
+        const b = writeBatch(db);
+        part.slice(i, i + 400).forEach(o => b.set(doc(db, o.c, o.id), clean({ ...o.data, createdAt: o.data.createdAt ? new Date(o.data.createdAt) : serverTimestamp() })));
+        await b.commit();
+      }
     }
   }
 };
