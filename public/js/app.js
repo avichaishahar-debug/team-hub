@@ -186,7 +186,7 @@ function gateView() {
 }
 
 function topbar() {
-  const st = !S.online ? 'מחוץ לרשת' : S.pending ? 'שומר…' : (S.fromCache ? 'מרענן…' : '✓ נשמר');
+  const st = !S.online ? 'מחוץ לרשת' : S.pending ? 'שומר…' : (S.fromCache ? 'מרענן…' : '✓ מחובר');
   const cls = (S.pending || S.fromCache || !S.online) ? 'busy' : '';
   return '<div class="top"><h1>' + ({ team: 'הצוות', expenses: 'מפגשים', bdays: 'ימי הולדת' }[S.view] || 'צוות גולדפרב') + '</h1><div class="row"><span id="sync" class="' + cls + '">' + st + '</span>' +
     '' + avatarOf(S.me, 'button', ' data-a="nav" data-v="team" aria-label="הפרופיל שלי"') + '</div></div>';

@@ -271,3 +271,4 @@ body{min-height:100lvh;box-sizing:border-box}
 .fb-stars span{font-size:2.2rem;color:#ffffff30;cursor:pointer;padding:0 4px}
 .fb-stars label:has(input:checked) span,.fb-stars label:has(~ label input:checked) span{color:#ffb84a}
 .fb-item{background:#ffffff0a;border-radius:10px;padding:8px 10px;margin:6px 0;white-space:pre-wrap}
+.top #sync:not(.busy):not(.err){color:#7dffc4;font-weight:700}

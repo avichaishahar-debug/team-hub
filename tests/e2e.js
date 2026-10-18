@@ -62,7 +62,7 @@ await sleep(1000);
 t0 = Date.now(); await p.click('[data-a="att-all"]');
 await p.waitForFunction(() => document.querySelectorAll('.who.on').length === 17, null, { timeout: 400 }); assert.ok(Date.now() - t0 < 500);
 await p.waitForFunction(() => document.getElementById('sync').textContent === 'שומר…', null, { timeout: 400 });
-await sleep(1000); assert.equal(await p.textContent('#sync'), '✓ נשמר');
+await sleep(1000); assert.equal(await p.textContent('#sync'), '✓ מחובר');
 await p.click('[data-a="att-day"][data-day="2"]'); await p.click('[data-a="att-all"]');
 await p.click('[data-a="att-toggle"]:has-text("יאיר רינגל")'); await p.click('[data-a="att-toggle"]:has-text("גיל מזור")'); await p.click('[data-a="att-toggle"]:has-text("גיל מזור")');
 await p.click('[data-a="att-day"][data-day="3"]'); await p.click('[data-a="att-copy"]'); await p.click('[data-a="att-toggle"]:has-text("עופר שכטר")');
