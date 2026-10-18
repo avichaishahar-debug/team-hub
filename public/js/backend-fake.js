@@ -1,11 +1,11 @@
 // backend מדומה בזיכרון, לבדיקות ולפיתוח בלי Firebase. אותו ממשק כמו backend-firebase.js.
 // מדמה גם השהיית שרת: האזנות מקבלות עדכון מקומי מיד, וההבטחה מסתיימת אחרי ההשהיה.
 export function makeFake({ delay = 0, user = null, rulesRole = null } = {}) {
-  const data = { members: [], meetups: [], expenses: [] };
+  const data = { members: [], meetups: [], expenses: [], payments: [] };
   const links = {};
   let watchers = [], authCb = null, curUser = user, n = 0, pendingCount = 0;
   const clone = o => JSON.parse(JSON.stringify(o));
-  const emit = () => watchers.forEach(cb => ['members', 'meetups', 'expenses'].forEach(k => cb(k, clone(data[k]), pendingCount > 0, false)));
+  const emit = () => watchers.forEach(cb => ['members', 'meetups', 'expenses', 'payments'].forEach(k => cb(k, clone(data[k]), pendingCount > 0, false)));
   const later = fn => new Promise((res, rej) => {
     pendingCount++; emit();
     setTimeout(() => { try { res(fn ? fn() : undefined); } catch (e) { rej(e); } finally { pendingCount--; emit(); } }, delay);
@@ -34,6 +34,8 @@ export function makeFake({ delay = 0, user = null, rulesRole = null } = {}) {
     },
     async getJoinCode() { return api.joinCode; },
     async setJoinCode(code) { api.joinCode = code; },
+    savePayment(x) { api.calls.push('savePayment'); upsert('payments', x); return later(); },
+    deletePayment(id) { api.calls.push('deletePayment'); data.payments = data.payments.filter(p => p.id !== id); return later(); },
     async listLinked() { return Object.keys(links).map(u => ({ memberId: links[u], email: api.linkEmails[u] || '' })); },
     async unlinkMember(memberId) { Object.keys(links).forEach(u => { if (links[u] === memberId) delete links[u]; }); },
     watch(cb) { watchers.push(cb); setTimeout(emit, 0); return () => { watchers = watchers.filter(w => w !== cb); }; },

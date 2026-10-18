@@ -1,6 +1,7 @@
 // Team Hub: האפליקציה (ממשק). הנתונים מגיעים משכבת backend (Firebase, או מדומה בבדיקות).
 import { settle, participants, idsOnDay, dayRange } from './settle.js';
 import { OWNER_EMAIL, EXPENSE_TYPES, MAX_DAYS } from './config.js';
+import { isoDate, upcomingBirthdays, missingBirthday, daysLabel } from './team.js';
 
 let backend;
 if (window.__USE_FAKE__) { const m = await import('./backend-fake.js'); backend = window.__fake = m.makeFake(window.__FAKE_OPTS__ || {}); }
@@ -42,8 +43,8 @@ const fire = p => { Promise.resolve(p).catch(e => toast(friendly(e), true)); };
 /* ---------- מצב ---------- */
 const S = {
   phase: 'loading', error: '', authUser: null, linkId: null,
-  members: [], meetups: [], expenses: [], me: null, pending: false, fromCache: false, online: navigator.onLine,
-  view: 'expenses', meetupId: null, tab: 'exp', day: 1,
+  members: [], meetups: [], expenses: [], payments: [], me: null, pending: false, fromCache: false, online: navigator.onLine,
+  view: 'home', meetupId: null, tab: 'exp', day: 1,
   newMeetup: false, editMeetup: false, confirm: '',
   formOpen: false, draft: null, editExp: null, openExp: null, showAll: false,
   editMember: null, addMember: false, open: {}, bulkResult: '', installEvt: null, restored: false
@@ -109,12 +110,12 @@ async function resolveMe() {
 }
 function restoreLast() {
   if (S.restored) return; S.restored = true;
-  const id = load('thLast'); if (id && S.meetups.some(m => m.id === id)) { S.view = 'expenses'; S.meetupId = id; }
+  const id = load('thLast'); if (id && S.meetups.some(m => m.id === id)) S.meetupId = id;   // נפתח כשנכנסים ללשונית ההוצאות
 }
 backend.onAuth(user => {
   S.authUser = user;
   if (stopWatch) { stopWatch(); stopWatch = null; }
-  Object.assign(S, { members: [], meetups: [], expenses: [], me: null, linkId: null, restored: false, meetupId: null });
+  Object.assign(S, { members: [], meetups: [], expenses: [], payments: [], me: null, linkId: null, restored: false, meetupId: null });
   if (!user) { S.phase = 'signedOut'; render(); return; }
   linkFlow(user);
 });
@@ -129,6 +130,8 @@ function scheduleRender() {
 document.addEventListener('focusout', () => { if (dirty) setTimeout(() => { if (dirty && !typing()) { dirty = false; render(); } }, 60); });
 
 const ICON = {
+  home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/><path d="M10 20v-5h4v5"/></svg>',
+  cake: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><path d="M5 20v-7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v7"/><path d="M5 15.5c2 1.500 3.500 1.500 5.500 0s3.500-1.500 5.500 0 2 .8 3 0"/><path d="M12 11V8"/><path d="M12 6.200c-.8-.8-.8-1.600 0-2.700.8 1.100.8 1.900 0 2.700z"/></svg>',
   wallet: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2"/><path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2H5a2 2 0 0 1-2-2"/><circle cx="16.5" cy="14" r="1"/></svg>',
   team: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.4"/><path d="M17 14c2.4 0 4 1.8 4 4.5"/></svg>'
 };
@@ -137,10 +140,10 @@ function render() {
   const app = $('app'), nav = $('nav');
   if (S.phase !== 'ready') { nav.hidden = true; app.innerHTML = gateView(); return; }
   nav.hidden = false;
-  nav.innerHTML = [['expenses', 'הוצאות', ICON.wallet], ['team', 'צוות', ICON.team]].map(([k, l, i]) =>
+  nav.innerHTML = [['home', 'בית', ICON.home], ['expenses', 'הוצאות', ICON.wallet], ['bdays', 'ימי הולדת', ICON.cake], ['team', 'צוות', ICON.team]].map(([k, l, i]) =>
     '<button data-a="nav" data-v="' + k + '"' + (S.view === k ? ' aria-current="page"' : '') + '>' + i + '<span>' + l + '</span></button>').join('');
   app.innerHTML = topbar() + (S.online ? '' : '<div class="offline">אין חיבור. אפשר להמשיך, והשינויים יישלחו כשהחיבור יחזור</div>') +
-    (S.view === 'team' ? teamView() : expensesView());
+    (S.view === 'team' ? teamView() : S.view === 'bdays' ? bdaysView() : S.view === 'expenses' ? expensesView() : dashView());
   if (S.focusAmt) { S.focusAmt = false; const a = $('x-amt'); if (a) { a.focus({ preventScroll: true }); a.scrollIntoView({ block: 'center', behavior: 'smooth' }); } }
 }
 
@@ -167,11 +170,66 @@ function gateView() {
 function topbar() {
   const st = !S.online ? 'מחוץ לרשת' : S.pending ? 'שומר…' : (S.fromCache ? 'מרענן…' : '✓ נשמר');
   const cls = (S.pending || S.fromCache || !S.online) ? 'busy' : '';
-  return '<div class="top"><h1>' + (S.view === 'team' ? 'צוות גולדפרב' : 'הוצאות מפגשים') + '</h1><div class="row"><span id="sync" class="' + cls + '">' + st + '</span>' +
+  return '<div class="top"><h1>' + ({ team: 'הצוות', expenses: 'הוצאות מפגשים', bdays: 'ימי הולדת' }[S.view] || 'צוות גולדפרב') + '</h1><div class="row"><span id="sync" class="' + cls + '">' + st + '</span>' +
     '<button class="avatar" data-a="nav" data-v="team" aria-label="הפרופיל שלי"' + avs(S.me && S.me.name) + '>' + esc(initial(S.me && S.me.name)) + '</button></div></div>';
 }
 
 /* ---------- הוצאות: רשימת מפגשים ---------- */
+
+/* ---------- בית ---------- */
+const firstName = n => String(n || '').trim().split(' ')[0];
+const waLink = text => 'https://wa.me/?text=' + encodeURIComponent(text);
+const bdayCard = (x, big) => {
+  const m = x.member, today = x.days === 0;
+  const greet = today ? '<a class="btn sm" target="_blank" rel="noopener" href="' + waLink('מזל טוב ' + firstName(m.name) + '! 🎂🎉 מכל הצוות') + '">שליחת ברכה בוואטסאפ</a>' : '';
+  return '<div class="bd' + (today ? ' today' : '') + '"><span class="avatar"' + avs(m.name) + '>' + esc(initial(m.name)) + '</span><span class="nm"><b>' + esc(m.name) + '</b>' +
+    '<small>' + bday(m.birthday) + ' · ' + daysLabel(x.days) + (today ? ' 🎉' : '') + '</small></span>' + greet + '</div>';
+};
+const missingBdayBanner = () => (S.me && !S.me.birthday)
+  ? '<div class="card bd-missing"><b>חסר לנו יום ההולדת שלך 🎂</b><span class="muted">כדי שהצוות יוכל לברך אותך, צריך לעדכן אותו בפרופיל.</span><div class="row"><button class="btn primary" data-a="goto-bday">עדכון בפרופיל</button></div></div>' : '';
+function myOpenTransfers() {
+  const me = S.me && S.me.id; if (!me) return [];
+  const out = [];
+  S.meetups.forEach(ev => {
+    const ex = meetupExpenses(ev.id); if (!ex.length) return;
+    settle(ev, ex, nameOf).transfers.forEach(t => { if ((t.from === me || t.to === me) && !payOf(ev, t)) out.push({ ev, t }); });
+  });
+  return out;
+}
+function dashView() {
+  const today = isoDate();
+  const up = upcomingBirthdays(S.members, today);
+  const nextEv = S.meetups.filter(m => addDays(m.startDate, m.days - 1) >= today).sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
+  const hello = '<div class="card hello"><h2>שלום ' + esc(firstName(S.me.name)) + ' 👋</h2><span class="muted">מה קורה בצוות</span></div>';
+  const bd = up.length ? '<div class="card"><div class="bar"><h3>ימי הולדת קרובים</h3><button class="btn link" data-a="nav" data-v="bdays">לכולם</button></div>' + up.slice(0, 3).map(x => bdayCard(x)).join('') + '</div>' : '';
+  const evCard = nextEv ? '<div class="card"><div class="bar"><h3>' + (nextEv.startDate <= today ? 'מפגש מתקיים עכשיו' : 'המפגש הבא') + '</h3></div><button class="ev" data-a="open-meetup" data-id="' + esc(nextEv.id) + '"><b>' + esc(nextEv.name) + '</b><span class="muted small">' + range(nextEv) + ' · ' + nextEv.days + ' ימים</span></button></div>' : '';
+  const open = myOpenTransfers();
+  const money = '<div class="card"><h3>אצלך</h3>' + (open.length ? open.map(({ ev, t }) => {
+    const out = t.from === S.me.id;
+    return '<button class="xfer" data-a="open-settle" data-id="' + esc(ev.id) + '">' + (out ? '<span>אתה מעביר ל</span><b>' + esc(nameOf(t.to)) + '</b>' : '<b>' + esc(nameOf(t.from)) + '</b><span>מעביר לך</span>') +
+      '<span class="muted small">' + esc(ev.name) + '</span><span class="amt ' + (out ? '' : 'pos') + '" style="margin-inline-start:auto">' + fmt(t.cents) + '</span></button>';
+  }).join('') : '<p class="muted">אין העברות פתוחות. הכול מסודר ✓</p>') + '</div>';
+  return installCard() + hello + missingBdayBanner() + bd + evCard + money;
+}
+
+/* ---------- ימי הולדת ---------- */
+function bdaysView() {
+  const today = isoDate(), up = upcomingBirthdays(S.members, today), miss = missingBirthday(S.members);
+  const list = up.length ? '<div class="card">' + up.map(x => bdayCard(x)).join('') + '</div>' : '<div class="card"><p class="muted">עוד לא הוזנו ימי הולדת. כל אחד מעדכן את שלו בלשונית הצוות.</p></div>';
+  const missing = miss.length ? '<details class="card" data-k="bdmiss"' + (opened('bdmiss') ? ' open' : '') + '><summary>עוד לא עדכנו (' + miss.length + ')</summary><p class="muted small">' + miss.map(m => esc(m.name)).join(', ') + '</p></details>' : '';
+  return missingBdayBanner() + list + missing;
+}
+
+/* ---------- תשלומי התחשבנות ---------- */
+const payKey = (ev, t) => ev.id + '__' + t.from + '__' + t.to;
+const payOf = (ev, t) => { const p = S.payments.find(x => x.id === payKey(ev, t)); return p && p.amountCents === t.cents ? p : null; };
+const canMark = t => !!S.me && (t.from === S.me.id || t.to === S.me.id || canEdit());
+function payBtn(ev, t) {
+  const p = payOf(ev, t), at = ' data-a="pay-toggle" data-meetup="' + esc(ev.id) + '" data-from="' + esc(t.from) + '" data-to="' + esc(t.to) + '" data-cents="' + t.cents + '"';
+  if (p) return '<span class="paid-tag">✓ שולם</span>' + (canMark(t) ? '<button class="btn link sm"' + at + '>ביטול</button>' : '');
+  return canMark(t) ? '<button class="btn sm"' + at + '>סימון כשולם</button>' : '<span class="muted small">ממתין</span>';
+}
+
 function expensesView() { return S.meetupId && curMeetup() ? meetupView() : homeView(); }
 
 function installCard() {
@@ -324,11 +382,11 @@ function setTab(ev, r) {
   const types = Object.keys(r.byType).sort((a, b) => r.byType[b] - r.byType[a]).map(t => '<div class="stat"><span>' + esc(t) + '</span><strong>' + fmt(r.byType[t]) + '</strong></div>').join('');
   const table = '<div class="tablebox"><table><thead><tr><th>שם</th><th class="n">ימים</th><th class="n">שילם</th><th class="n">חלקו</th><th class="n">מאזן</th></tr></thead><tbody>' +
     r.rows.map(x => '<tr><td>' + esc(nameOf(x.id)) + '</td><td class="n">' + x.days + '</td><td class="n">' + fmt(x.paid) + '</td><td class="n">' + fmt(x.share) + '</td><td class="n ' + (x.balance > 0 ? 'pos' : x.balance < 0 ? 'neg' : '') + '">' + (x.balance > 0 ? '+' + fmt(x.balance) : x.balance < 0 ? '−' + fmt(-x.balance) : '0') + '</td></tr>').join('') + '</tbody></table></div>';
-  const xf = r.transfers.length ? r.transfers.map(t => '<div class="xfer"><b>' + esc(nameOf(t.from)) + '</b><span class="arrow">מעביר ל</span><b>' + esc(nameOf(t.to)) + '</b><span class="amt" style="margin-inline-start:auto">' + fmt(t.cents) + '</span></div>').join('') : '<p class="muted">כולם מאוזנים, אין צורך בהעברות.</p>';
+  const xf = r.transfers.length ? r.transfers.map(t => '<div class="xfer' + (payOf(ev, t) ? ' paid' : '') + '"><b>' + esc(nameOf(t.from)) + '</b><span class="arrow">מעביר ל</span><b>' + esc(nameOf(t.to)) + '</b><span class="amt" style="margin-inline-start:auto">' + fmt(t.cents) + '</span>' + payBtn(ev, t) + '</div>').join('') : '<p class="muted">כולם מאוזנים, אין צורך בהעברות.</p>';
   const meId = S.me && S.me.id, mine = meId ? r.transfers.filter(t => t.from === meId || t.to === meId) : [];
   const meCard = meId ? '<div class="card" data-mine style="border-color:var(--accent)"><h3>אצלך, ' + esc(S.me.name) + '</h3>' + (mine.length ? mine.map(t => t.from === meId
-    ? '<div class="xfer"><span>אתה מעביר ל</span><b>' + esc(nameOf(t.to)) + '</b><span class="amt" style="margin-inline-start:auto">' + fmt(t.cents) + '</span></div>'
-    : '<div class="xfer"><b>' + esc(nameOf(t.from)) + '</b><span>מעביר לך</span><span class="amt pos" style="margin-inline-start:auto">' + fmt(t.cents) + '</span></div>').join('') : '<p class="muted">אין לך העברות. אתה מאוזן.</p>') + '</div>' : '';
+    ? '<div class="xfer' + (payOf(ev, t) ? ' paid' : '') + '"><span>אתה מעביר ל</span><b>' + esc(nameOf(t.to)) + '</b><span class="amt" style="margin-inline-start:auto">' + fmt(t.cents) + '</span>' + payBtn(ev, t) + '</div>'
+    : '<div class="xfer' + (payOf(ev, t) ? ' paid' : '') + '"><b>' + esc(nameOf(t.from)) + '</b><span>מעביר לך</span><span class="amt pos" style="margin-inline-start:auto">' + fmt(t.cents) + '</span>' + payBtn(ev, t) + '</div>').join('') : '<p class="muted">אין לך העברות. אתה מאוזן.</p>') + '</div>' : '';
   return warn + meCard + '<div class="card"><div class="bar"><h3>כל ההעברות</h3><button class="btn sm" data-a="copy-set">העתק לוואטסאפ</button></div>' + xf + '</div>' +
     '<details class="card" data-k="settbl"' + (opened('settbl') ? ' open' : '') + '><summary>פירוט לכל משתתף</summary>' + table +
     '<p class="muted small">החלק של כל אחד: סכום כל הוצאה מחולק לפי ימי הנוכחות של השותפים להוצאה. מאזן = מה ששילם פחות החלק שלו. פלוס (ירוק) מקבל החזר, מינוס (אדום) משלם.</p></details>' +
@@ -357,7 +415,7 @@ function teamView() {
   const me = S.me, mem = sortedMembers();
   const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
   const profile = '<div class="card"><div class="mrow" style="border:0"><span class="avatar"' + avs(me.name) + '>' + esc(initial(me.name)) + '</span><span class="nm"><b>' + esc(me.name) + '</b><small dir="ltr" style="text-align:right">' + esc(S.authUser.email) + '</small></span><span class="badge">' + roleLabel(isOwner() ? 'admin' : me.role) + '</span></div>' +
-    '<label>יום ההולדת שלי<input type="date" id="my-bday" value="' + esc(me.birthday || '') + '" data-a-change="my-bday"></label>' +
+    '<label' + (me.birthday ? '' : ' class="need"') + '>יום ההולדת שלי' + (me.birthday ? '' : '<small class="muted">חסר, כדי שהצוות יוכל לברך אותך</small>') + '<input type="date" id="my-bday" value="' + esc(me.birthday || '') + '" data-a-change="my-bday"></label>' +
     '<div class="row">' + (S.installEvt && !standalone ? '<button class="btn" data-a="install">התקנת האפליקציה</button>' : '') + '<button class="btn" data-a="signout">התנתקות</button></div></div>';
   const addForm = !canEdit() ? '' : S.addMember ? '<form class="card" data-form="add-member"><h3>חבר צוות חדש</h3><div class="grid"><label>שם<input id="nm-name" required maxlength="60"></label><label>מייל Google<input id="nm-email" type="email" dir="ltr" placeholder="name@gmail.com"></label><label>יום הולדת (לא חובה)<input id="nm-bday" type="date"></label></div><div class="row"><button class="btn primary" type="submit">הוספה</button><button class="btn" type="button" data-a="add-member-toggle">ביטול</button></div></form>'
     : '<div><button class="btn primary" data-a="add-member-toggle">＋ חבר צוות</button></div>';
@@ -420,6 +478,15 @@ document.addEventListener('click', async ev => {
   if (a === 'signin') { fire(backend.signIn()); }
   else if (a === 'signout') { await backend.signOut(); }
   else if (a === 'reload') { location.reload(); }
+  else if (a === 'goto-bday') { S.view = 'team'; render(); window.scrollTo(0, 0); const i = $('my-bday'); if (i) { i.focus({ preventScroll: true }); i.scrollIntoView({ block: 'center' }); } }
+  else if (a === 'open-meetup') { S.view = 'expenses'; store('thLast', id); Object.assign(S, { meetupId: id, tab: 'exp', editExp: null, formOpen: false, draft: null, openExp: null, showAll: false, day: 1, confirm: '', editMeetup: false }); render(); window.scrollTo(0, 0); }
+  else if (a === 'open-settle') { S.view = 'expenses'; store('thLast', id); Object.assign(S, { meetupId: id, tab: 'set', editExp: null, formOpen: false, draft: null, openExp: null, confirm: '', editMeetup: false }); render(); window.scrollTo(0, 0); }
+  else if (a === 'pay-toggle') {
+    const d = b.dataset, pid = d.meetup + '__' + d.from + '__' + d.to, cents = Number(d.cents);
+    const cur = S.payments.find(x => x.id === pid);
+    if (cur && cur.amountCents === cents) fire(backend.deletePayment(pid));
+    else fire(backend.savePayment({ id: pid, meetupId: d.meetup, fromId: d.from, toId: d.to, amountCents: cents, markedById: S.me.id }));
+  }
   else if (a === 'pick-me') {
     try { await backend.link(S.authUser.uid, id, S.authUser.email); S.linkId = id; startWatch(); } catch (e) { toast(friendly(e), true); }
   }

@@ -49,6 +49,10 @@ await sleep(900);
 assert.equal((await fake()).d.members.length, 17);
 
 /* ===== 2. מפגש חדש, נוכחות ===== */
+// מסך הבית: ברירת מחדל, והודעה למי שחסר לו יום הולדת
+assert.ok((await p.textContent('#app')).includes('חסר לנו יום ההולדת שלך'));
+await p.click('[data-a="goto-bday"]'); await p.waitForSelector('#my-bday'); assert.equal(await p.evaluate(() => document.activeElement.id), 'my-bday');
+await p.click('#nav [data-v="expenses"]');
 await p.click('[data-a="new-toggle"]'); await p.fill('#ne-name', 'סוף שבוע באילת'); await p.fill('#ne-date', '2026-11-05');
 let t0 = Date.now(); await p.click('form[data-form="new-meetup"] button[type=submit]');
 await p.waitForSelector('[data-a="att-toggle"]', { timeout: 400 }); assert.ok(Date.now() - t0 < 500, 'meetup appears before the server answers');
@@ -108,6 +112,12 @@ await p.click('[data-a="tab"][data-t="set"]'); await p.waitForSelector('[data-mi
 assert.ok((await p.textContent('[data-mine]')).includes('אביחי שחר'));
 await p.click('[data-a="copy-set"]'); await p.waitForSelector('#toast div');
 assert.ok((await p.evaluate(() => navigator.clipboard.readText())).includes('התחשבנות סוף שבוע באילת'));
+// סימון העברה כשולמה
+await p.click('[data-a="pay-toggle"]'); await sleep(900);
+assert.equal((await fake()).d.payments.length, 1);
+assert.ok(await p.locator('.paid-tag').count() > 0);
+await p.click('[data-a="pay-toggle"]:has-text("ביטול")'); await sleep(900);
+assert.equal((await fake()).d.payments.length, 0);
 await p.screenshot({ path: 'shot_settle.png' });
 
 // ---- edit meetup: shortening drops attendance of the removed day ----

@@ -113,6 +113,16 @@ service cloud.firestore {
       allow delete: if isManager();
     }
 
+    // ---- סימון העברות כשולמו: הצד המעביר, הצד המקבל או מנהל ----
+    match /payments/{id} {
+      allow read: if linked() || isOwner();
+      allow create, update: if (isManager() || (linked() && (request.resource.data.fromId == myId() || request.resource.data.toId == myId())))
+                    && str(request.resource.data.meetupId, 64) && str(request.resource.data.fromId, 64) && str(request.resource.data.toId, 64)
+                    && request.resource.data.amountCents is int && request.resource.data.amountCents > 0
+                    && id == request.resource.data.meetupId + '__' + request.resource.data.fromId + '__' + request.resource.data.toId;
+      allow delete: if isManager() || (linked() && (resource.data.fromId == myId() || resource.data.toId == myId()));
+    }
+
     match /{other=**} { allow read, write: if false; }
   }
 }

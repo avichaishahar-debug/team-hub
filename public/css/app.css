@@ -224,3 +224,19 @@ input[type="date"]{color-scheme:dark}
 .gate img{border-radius:26px;box-shadow:0 16px 34px -14px rgba(20,184,166,.7)}
 .offline{border-radius:12px}
 #toast div{background:#e8eefc;color:#0c1220}
+
+/* ---- בית / ימי הולדת / תשלומים ---- */
+.hello h2{margin:0 0 2px}
+.bd{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line,#ffffff14)}
+.bd:first-of-type{border-top:0}
+.bd .nm{display:flex;flex-direction:column;flex:1;min-width:0}
+.bd .nm small{color:var(--muted,#8fa0bd)}
+.bd.today{background:linear-gradient(90deg,#ffb84a22,transparent);border-radius:12px;padding-inline:10px}
+.bd-missing{border:1px solid #ffb84a66;background:#ffb84a14;display:flex;flex-direction:column;gap:8px}
+label.need{color:#ffb84a}
+label.need input{border-color:#ffb84a}
+.card .ev{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;background:none;border:0;color:inherit;text-align:start;padding:6px 0;font:inherit;cursor:pointer}
+.paid-tag{color:#2dd4a0;font-weight:700;font-size:.85rem}
+.xfer{flex-wrap:wrap}
+.xfer.paid{opacity:.65}
+.xfer.paid .amt{text-decoration:line-through}

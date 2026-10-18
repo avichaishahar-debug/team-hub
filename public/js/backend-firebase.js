@@ -93,7 +93,8 @@ export const backend = {
     const subs = [
       ['members', r => ({ id: r.id, ...r.data() })],
       ['meetups', r => { const x = r.data(); return { id: r.id, ...x, createdAt: stamp(x.createdAt) }; }],
-      ['expenses', r => { const x = r.data(); return { id: r.id, ...x, createdAt: stamp(x.createdAt) }; }]
+      ['expenses', r => { const x = r.data(); return { id: r.id, ...x, createdAt: stamp(x.createdAt) }; }],
+      ['payments', r => ({ id: r.id, ...r.data() })]
     ].map(([name, map]) => onSnapshot(col(name), { includeMetadataChanges: true },
       s => cb(name, s.docs.map(map), s.metadata.hasPendingWrites, s.metadata.fromCache),
       err => cb(name, null, false, false, err)));
@@ -140,6 +141,10 @@ export const backend = {
     return setDoc(doc(db, 'expenses', id), clean({ ...d, createdAt: createdAt ? new Date(createdAt) : serverTimestamp() }));
   },
   deleteExpense: id => deleteDoc(doc(db, 'expenses', id)),
+
+  /** סימון העברה כשולמה. id = meetupId__fromId__toId */
+  savePayment(x) { const { id, ...d } = x; return setDoc(doc(db, 'payments', id), clean({ ...d, at: serverTimestamp() })); },
+  deletePayment: id => deleteDoc(doc(db, 'payments', id)),
 
   /** כתיבה בצרור (ייבוא). ops: [{c:'members'|'meetups'|'expenses', id, data}] */
   async batchSet(ops) {
