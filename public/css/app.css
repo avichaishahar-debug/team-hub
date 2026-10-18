@@ -248,3 +248,7 @@ label.need input{border-color:#ffb84a}
 .xfer{flex-wrap:wrap}
 .xfer.paid{opacity:.65}
 .xfer.paid .amt{text-decoration:line-through}
+
+.avatar.has-photo{background:none;padding:0;overflow:hidden}
+.avatar img{width:100%;height:100%;object-fit:cover;display:block}
+.photo-row{margin:8px 0}

@@ -63,6 +63,24 @@ const HUES = [205, 160, 28, 45, 185, 120, 10, 225];
 const hueOf = n => { let h = 0; for (const c of String(n || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0; return HUES[h % HUES.length]; };
 const avs = n => ' style="--h:' + hueOf(n) + '"';
 const initial = n => (n || '?').trim().charAt(0);
+const avatarOf = (m, tag = 'span', extra = '') => {
+  const name = m && m.name, ph = m && m.photo;
+  return '<' + tag + ' class="avatar' + (ph ? ' has-photo' : '') + '"' + avs(name) + extra + '>' + (ph ? '<img src="' + esc(ph) + '" alt="">' : esc(initial(name))) + '</' + tag + '>';
+};
+/** מקטין תמונה ל-128px ומחזיר data URL קטן (נשמר ישירות במסמך החבר, בלי Storage) */
+function shrinkPhoto(file) {
+  return new Promise((res, rej) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const N = 128, c = document.createElement('canvas'); c.width = c.height = N;
+      const k = Math.max(N / img.width, N / img.height), w = img.width * k, h = img.height * k;
+      c.getContext('2d').drawImage(img, (N - w) / 2, (N - h) / 2, w, h);
+      URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg', 0.82));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('bad image')); };
+    img.src = url;
+  });
+}
 
 /* ---------- התחברות וקישור לחבר צוות ---------- */
 let stopWatch = null;
@@ -158,7 +176,7 @@ function gateView() {
     '<div class="row" style="margin-top:12px"><button class="btn primary" type="submit">המשך</button>' + out + '</div></form></div></div>';
   if (S.phase === 'pick') return '<div class="gate">' + logo + '<div class="card"><h2>מי אתה?</h2><p class="muted">בחר את השם שלך. הבחירה נשמרת לחשבון הזה, ואם טעית אפשר לבקש ממנהל-על לאפס אותה.</p>' +
     '<div class="who-grid">' + (S.roster || []).filter(m => m.role === 'member').sort((x, y) => x.name.localeCompare(y.name, 'he')).map(m =>
-      '<button class="who" data-a="pick-me" data-id="' + esc(m.id) + '"><span class="avatar"' + avs(m.name) + '>' + esc(initial(m.name)) + '</span>' + esc(m.name) + '</button>').join('') +
+      '<button class="who" data-a="pick-me" data-id="' + esc(m.id) + '">' + avatarOf(m) + '' + esc(m.name) + '</button>').join('') +
     '</div><p class="muted small">מנהלים נכנסים לפי המייל שלהם, ולכן הם לא מופיעים כאן.</p><div class="row">' + out + '</div></div></div>';
   if (S.phase === 'bootstrap') return '<div class="gate">' + logo + '<div class="card"><h2>ברוך הבא, בעל המערכת</h2><p>זו הכניסה הראשונה. ניצור לך פרופיל מנהל-על.</p>' +
     '<form data-form="bootstrap"><label>השם שיוצג<input id="bs-name" required maxlength="60" value="' + esc(S.authUser.name) + '"></label>' +
@@ -171,7 +189,7 @@ function topbar() {
   const st = !S.online ? 'מחוץ לרשת' : S.pending ? 'שומר…' : (S.fromCache ? 'מרענן…' : '✓ נשמר');
   const cls = (S.pending || S.fromCache || !S.online) ? 'busy' : '';
   return '<div class="top"><h1>' + ({ team: 'הצוות', expenses: 'מפגשים', bdays: 'ימי הולדת' }[S.view] || 'צוות גולדפרב') + '</h1><div class="row"><span id="sync" class="' + cls + '">' + st + '</span>' +
-    '<button class="avatar" data-a="nav" data-v="team" aria-label="הפרופיל שלי"' + avs(S.me && S.me.name) + '>' + esc(initial(S.me && S.me.name)) + '</button></div></div>';
+    '' + avatarOf(S.me, 'button', ' data-a="nav" data-v="team" aria-label="הפרופיל שלי"') + '</div></div>';
 }
 
 /* ---------- הוצאות: רשימת מפגשים ---------- */
@@ -182,7 +200,7 @@ const waLink = text => 'https://wa.me/?text=' + encodeURIComponent(text);
 const bdayCard = (x, big) => {
   const m = x.member, today = x.days === 0;
   const greet = today ? '<a class="btn sm" target="_blank" rel="noopener" href="' + waLink('מזל טוב ' + firstName(m.name) + '! 🎂🎉 מכל הצוות') + '">שליחת ברכה בוואטסאפ</a>' : '';
-  return '<div class="bd' + (today ? ' today' : '') + '"><span class="avatar"' + avs(m.name) + '>' + esc(initial(m.name)) + '</span><span class="nm"><b>' + esc(m.name) + '</b>' +
+  return '<div class="bd' + (today ? ' today' : '') + '">' + avatarOf(m) + '<span class="nm"><b>' + esc(m.name) + '</b>' +
     '<small>' + bday(m.birthday) + ' · ' + daysLabel(x.days) + (today ? ' 🎉' : '') + '</small></span>' + greet + '</div>';
 };
 const missingBdayBanner = () => (S.me && !S.me.birthday)
@@ -442,7 +460,8 @@ function linkBadge(m) {
 function teamView() {
   const me = S.me, mem = sortedMembers();
   const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
-  const profile = '<div class="card"><div class="mrow" style="border:0"><span class="avatar"' + avs(me.name) + '>' + esc(initial(me.name)) + '</span><span class="nm"><b>' + esc(me.name) + '</b><small dir="ltr" style="text-align:right">' + esc(S.authUser.email) + '</small></span><span class="badge">' + roleLabel(isOwner() ? 'admin' : me.role) + '</span></div>' +
+  const profile = '<div class="card"><div class="mrow" style="border:0">' + avatarOf(me) + '<span class="nm"><b>' + esc(me.name) + '</b><small dir="ltr" style="text-align:right">' + esc(S.authUser.email) + '</small></span><span class="badge">' + roleLabel(isOwner() ? 'admin' : me.role) + '</span></div>' +
+    '<div class="row photo-row"><label class="btn sm" for="my-photo">' + (me.photo ? 'החלפת תמונה' : 'הוספת תמונה') + '</label><input type="file" id="my-photo" accept="image/*" hidden>' + (me.photo ? '<button class="btn link sm" data-a="photo-rm">הסרה</button>' : '') + '</div>' +
     '<label' + (me.birthday ? '' : ' class="need"') + '>יום ההולדת שלי' + (me.birthday ? '' : '<small class="muted">חסר, כדי שהצוות יוכל לברך אותך</small>') + '<input type="date" id="my-bday" value="' + esc(me.birthday || '') + '" data-a-change="my-bday"></label>' +
     '<div class="row">' + (S.installEvt && !standalone ? '<button class="btn" data-a="install">התקנת האפליקציה</button>' : '') + '<button class="btn" data-a="signout">התנתקות</button></div></div>';
   const addForm = !canEdit() ? '' : S.addMember ? '<form class="card" data-form="add-member"><h3>חבר צוות חדש</h3><div class="grid"><label>שם<input id="nm-name" required maxlength="60"></label><label>מייל Google<input id="nm-email" type="email" dir="ltr" placeholder="name@gmail.com"></label><label>יום הולדת (לא חובה)<input id="nm-bday" type="date"></label></div><div class="row"><button class="btn primary" type="submit">הוספה</button><button class="btn" type="button" data-a="add-member-toggle">ביטול</button></div></form>'
@@ -452,7 +471,7 @@ function teamView() {
       (isAdmin() ? '<label>תפקיד<select id="em-role">' + ['member', 'manager', 'admin'].map(r => '<option value="' + r + '"' + (m.role === r ? ' selected' : '') + '>' + roleLabel(r) + '</option>').join('') + '</select></label>' : '') + '</div>' +
       '<div class="row"><button class="btn primary" type="submit">שמירה</button><button class="btn" type="button" data-a="em-cancel">ביטול</button>' + (isAdmin() ? '<button class="btn" type="button" data-a="unlink-member" data-id="' + esc(m.id) + '">ניתוק חשבון</button>' : '') + '<button class="btn danger' + (S.confirm === 'm' + m.id ? ' sure' : '') + '" type="button" data-a="rm-member" data-id="' + esc(m.id) + '">' + (S.confirm === 'm' + m.id ? 'בטוח? הסר' : 'הסרה') + '</button></div></form></li>';
     const sub = [m.email ? '<span dir="ltr">' + esc(m.email) + '</span>' : '<span>עדיין בלי מייל</span>', m.birthday ? '🎂 ' + bday(m.birthday) : '', linkBadge(m)].filter(Boolean).join(' · ');
-    return '<li class="mrow"><span class="avatar"' + avs(m.name) + '>' + esc(initial(m.name)) + '</span><span class="nm"><b>' + esc(m.name) + (m.role !== 'member' ? ' <span class="badge">' + roleLabel(m.role) + '</span>' : '') + '</b><small>' + sub + '</small></span>' +
+    return '<li class="mrow">' + avatarOf(m) + '<span class="nm"><b>' + esc(m.name) + (m.role !== 'member' ? ' <span class="badge">' + roleLabel(m.role) + '</span>' : '') + '</b><small>' + sub + '</small></span>' +
       (canEdit() && (m.role !== 'admin' || isAdmin()) ? '<button class="btn link" data-a="em-edit" data-id="' + esc(m.id) + '">עריכה</button>' : '<span></span>') + '</li>';
   }).join('');
   const joinCard = !isAdmin() ? '' : '<details class="card" data-k="join"' + (opened('join') ? ' open' : '') + '><summary>קוד הצטרפות לצוות</summary>' +
@@ -509,6 +528,7 @@ document.addEventListener('click', async ev => {
   else if (a === 'goto-bday') { S.view = 'team'; render(); window.scrollTo(0, 0); const i = $('my-bday'); if (i) { i.focus({ preventScroll: true }); i.scrollIntoView({ block: 'center' }); } }
   else if (a === 'open-meetup') { S.view = 'expenses'; store('thLast', id); Object.assign(S, { meetupId: id, tab: 'info', editExp: null, formOpen: false, draft: null, openExp: null, showAll: false, day: 1, confirm: '', editMeetup: false }); render(); window.scrollTo(0, 0); }
   else if (a === 'open-settle') { S.view = 'expenses'; store('thLast', id); Object.assign(S, { meetupId: id, tab: 'set', editExp: null, formOpen: false, draft: null, openExp: null, confirm: '', editMeetup: false }); render(); window.scrollTo(0, 0); }
+  else if (a === 'photo-rm') { const { photo, ...rest } = S.me; fire(backend.saveMember(rest)); toast('התמונה הוסרה'); }
   else if (a === 'rsvp') { const e = curMeetup(); if (e && S.me) fire(backend.patchMeetup(e.id, { ['rsvp.' + S.me.id]: b.dataset.v })); }
   else if (a === 'ics') {
     const e = curMeetup(), url = URL.createObjectURL(new Blob([icsFor(e)], { type: 'text/calendar' })), l = document.createElement('a');
@@ -581,6 +601,10 @@ document.addEventListener('click', async ev => {
 document.addEventListener('input', e => { const f = e.target.closest && e.target.closest('form[data-form="exp"]'); if (f) captureDraft(f); });
 document.addEventListener('change', e => {
   const t = e.target, f = t.closest && t.closest('form[data-form="exp"]'); if (f) captureDraft(f);
+  if (t.id === 'my-photo' && S.me && t.files[0]) {
+    shrinkPhoto(t.files[0]).then(photo => { fire(backend.saveMember({ ...S.me, photo })); toast('התמונה נשמרה'); }).catch(() => toast('לא הצלחתי לקרוא את התמונה', true));
+    t.value = '';
+  }
   if (t.id === 'my-bday' && S.me) { fire(backend.saveMember({ ...S.me, birthday: t.value || '' })); toast('נשמר'); }
 });
 

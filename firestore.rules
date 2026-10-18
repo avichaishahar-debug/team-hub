@@ -67,21 +67,23 @@ service cloud.firestore {
     }
 
     // ---- חברי צוות ----
+    function photoOk(d) { return !('photo' in d) || (d.photo is string && d.photo.size() < 40000); }
+
     match /members/{id} {
       // מי שלא מקושר עדיין יכול למצוא רק את הרשומה עם המייל שלו
       allow read: if isOwner() || linked() || joinOk()
                   || (signedIn() && resource.data.email == request.auth.token.email);
 
       allow create: if (isAdmin() || (isManager() && request.resource.data.role == 'member'))
-                    && str(request.resource.data.name, 60) && roleOk(request.resource.data.role);
+                    && str(request.resource.data.name, 60) && roleOk(request.resource.data.role) && photoOk(request.resource.data);
 
-      allow update: if str(request.resource.data.name, 60) && roleOk(request.resource.data.role)
+      allow update: if str(request.resource.data.name, 60) && roleOk(request.resource.data.role) && photoOk(request.resource.data)
                     && (
                       isAdmin()
                       || (isManager() && request.resource.data.role == resource.data.role && resource.data.role != 'admin')
                       // כל אחד יכול לעדכן פרטים אישיים משלו, בלי לגעת בתפקיד ובמייל
                       || (linked() && myId() == id
-                          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['birthday', 'phone']))
+                          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['birthday', 'phone', 'photo']))
                     );
 
       allow delete: if isManager() && resource.data.role != 'admin';
