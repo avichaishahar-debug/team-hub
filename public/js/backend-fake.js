@@ -32,6 +32,7 @@ export function makeFake({ delay = 0, user = null, rulesRole = null } = {}) {
     },
     async getJoinCode() { return api.joinCode; },
     async setJoinCode(code) { api.joinCode = code; },
+    async listLinked() { return Object.values(links); },
     async unlinkMember(memberId) { Object.keys(links).forEach(u => { if (links[u] === memberId) delete links[u]; }); },
     watch(cb) { watchers.push(cb); setTimeout(emit, 0); return () => { watchers = watchers.filter(w => w !== cb); }; },
     saveMember(m) { api.calls.push('saveMember'); upsert('members', m); return later(); },

@@ -90,10 +90,12 @@ function startWatch() {
     scheduleRender();
   });
 }
+async function loadLinked() { try { S.linked = await backend.listLinked(); scheduleRender(); } catch (e) {} }
 async function resolveMe() {
   S.me = M(S.linkId) || null;
   if (S.me && S.phase !== 'ready') {
     S.phase = 'ready'; restoreLast();
+    if (isAdmin()) loadLinked();
     if (isAdmin()) backend.getJoinCode().then(c => { S.joinCode = c || ''; scheduleRender(); }).catch(() => {});
   }
   else if (!S.me && S.phase === 'syncing' && !S.fromCache && S.members.length) {
@@ -354,7 +356,7 @@ function teamView() {
     if (S.editMember === m.id) return '<li><form class="card" data-form="edit-member"><div class="grid"><label>שם<input id="em-name" required maxlength="60" value="' + esc(m.name) + '"></label><label>מייל<input id="em-email" type="email" dir="ltr" value="' + esc(m.email || '') + '"></label><label>יום הולדת<input id="em-bday" type="date" value="' + esc(m.birthday || '') + '"></label>' +
       (isAdmin() ? '<label>תפקיד<select id="em-role">' + ['member', 'manager', 'admin'].map(r => '<option value="' + r + '"' + (m.role === r ? ' selected' : '') + '>' + roleLabel(r) + '</option>').join('') + '</select></label>' : '') + '</div>' +
       '<div class="row"><button class="btn primary" type="submit">שמירה</button><button class="btn" type="button" data-a="em-cancel">ביטול</button>' + (isAdmin() ? '<button class="btn" type="button" data-a="unlink-member" data-id="' + esc(m.id) + '">ניתוק חשבון</button>' : '') + '<button class="btn danger' + (S.confirm === 'm' + m.id ? ' sure' : '') + '" type="button" data-a="rm-member" data-id="' + esc(m.id) + '">' + (S.confirm === 'm' + m.id ? 'בטוח? הסר' : 'הסרה') + '</button></div></form></li>';
-    const sub = [m.email ? '<span dir="ltr">' + esc(m.email) + '</span>' : '<span>עדיין בלי מייל</span>', m.birthday ? '🎂 ' + bday(m.birthday) : ''].filter(Boolean).join(' · ');
+    const sub = [m.email ? '<span dir="ltr">' + esc(m.email) + '</span>' : '<span>עדיין בלי מייל</span>', m.birthday ? '🎂 ' + bday(m.birthday) : '', isAdmin() && (S.linked || []).indexOf(m.id) !== -1 ? '<span class="pos">✓ מחובר</span>' : ''].filter(Boolean).join(' · ');
     return '<li class="mrow"><span class="avatar"' + avs(m.name) + '>' + esc(initial(m.name)) + '</span><span class="nm"><b>' + esc(m.name) + (m.role !== 'member' ? ' <span class="badge">' + roleLabel(m.role) + '</span>' : '') + '</b><small>' + sub + '</small></span>' +
       (canEdit() && (m.role !== 'admin' || isAdmin()) ? '<button class="btn link" data-a="em-edit" data-id="' + esc(m.id) + '">עריכה</button>' : '<span></span>') + '</li>';
   }).join('');
@@ -418,9 +420,9 @@ document.addEventListener('click', async ev => {
     try { await navigator.clipboard.writeText(t); toast('ההודעה הועתקה'); } catch (e) { toast('לא הצלחתי להעתיק', true); }
   }
   else if (a === 'unlink-member') {
-    try { await backend.unlinkMember(id); toast('החשבון נותק. החבר יבחר שוב את שמו בכניסה הבאה'); } catch (e) { toast(friendly(e), true); }
+    try { await backend.unlinkMember(id); loadLinked(); toast('החשבון נותק. החבר יבחר שוב את שמו בכניסה הבאה'); } catch (e) { toast(friendly(e), true); }
   }
-  else if (a === 'nav') { S.view = b.dataset.v; render(); window.scrollTo(0, 0); }
+  else if (a === 'nav') { S.view = b.dataset.v; render(); window.scrollTo(0, 0); if (S.view === 'team' && isAdmin()) loadLinked(); }
   else if (a === 'install') { if (S.installEvt) { S.installEvt.prompt(); S.installEvt = null; render(); } }
   else if (a === 'install-hide') { store('thInstallDismissed', '1'); render(); }
   else if (a === 'open') { store('thLast', id); Object.assign(S, { meetupId: id, tab: 'exp', editExp: null, formOpen: false, draft: null, openExp: null, showAll: false, day: 1, confirm: '', editMeetup: false }); render(); window.scrollTo(0, 0); }

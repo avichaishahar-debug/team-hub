@@ -78,6 +78,8 @@ export const backend = {
   },
   async getJoinCode() { const d = await getDoc(doc(db, 'config', 'join')); return d.exists() ? d.data().code : ''; },
   setJoinCode: code => setDoc(doc(db, 'config', 'join'), { code }),
+  /** מנהל-על: אילו חברי צוות כבר מקושרים לחשבון Google. */
+  async listLinked() { const s = await getDocs(col('users')); return s.docs.map(d => d.data().memberId); },
   /** מנהל-על: מנתק את כל החשבונות המקושרים לחבר צוות, כדי שיבחר מחדש. */
   async unlinkMember(memberId) {
     const s = await getDocs(query(col('users'), where('memberId', '==', memberId)));
