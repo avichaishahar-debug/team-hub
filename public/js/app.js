@@ -126,7 +126,7 @@ function render() {
 function gateView() {
   const logo = '<img src="icons/icon-192.png" alt="">';
   const out = '<button class="btn" data-a="signout">התנתקות</button>';
-  if (S.phase === 'signedOut') return '<div class="gate">' + logo + '<h1>הצוות שלנו</h1><p class="muted">הוצאות מפגשים, ימי הולדת ואירועים במקום אחד.</p>' +
+  if (S.phase === 'signedOut') return '<div class="gate">' + logo + '<h1>צוות גולדפרב</h1><p class="muted">הוצאות מפגשים, ימי הולדת ואירועים במקום אחד.</p>' +
     '<button class="btn primary" style="padding:12px 24px;font-size:1.05rem" data-a="signin">התחברות עם Google</button></div>';
   if (S.phase === 'notInvited') return '<div class="gate">' + logo + '<div class="card"><h2>עוד לא הוספו אותך</h2><p>המייל <b dir="ltr">' + esc(S.authUser.email) +
     '</b> לא רשום בצוות. בקש ממנהל להוסיף אותו, ואז התחבר שוב. אפשר גם להתחבר עם חשבון Google אחר.</p><div class="row">' + out + '</div></div></div>';
@@ -140,7 +140,7 @@ function gateView() {
 function topbar() {
   const st = !S.online ? 'מחוץ לרשת' : S.pending ? 'שומר…' : (S.fromCache ? 'מרענן…' : '✓ נשמר');
   const cls = (S.pending || S.fromCache || !S.online) ? 'busy' : '';
-  return '<div class="top"><h1>' + (S.view === 'team' ? 'הצוות' : 'הוצאות מפגשים') + '</h1><div class="row"><span id="sync" class="' + cls + '">' + st + '</span>' +
+  return '<div class="top"><h1>' + (S.view === 'team' ? 'צוות גולדפרב' : 'הוצאות מפגשים') + '</h1><div class="row"><span id="sync" class="' + cls + '">' + st + '</span>' +
     '<button class="avatar" data-a="nav" data-v="team" aria-label="הפרופיל שלי">' + esc(initial(S.me && S.me.name)) + '</button></div></div>';
 }
 

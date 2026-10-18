@@ -1,7 +1,7 @@
 // Service worker: מאפשר לאפליקציה להיפתח גם בלי קליטה.
 // קבצי האפליקציה: רשת קודם, ואם אין רשת מהמטמון (כך שעדכון גרסה מגיע מיד כשיש קליטה).
 // נתוני Firestore ו-Auth לא עוברים כאן, הם מנוהלים על ידי ה-SDK עם מטמון משלו.
-const VERSION = 'v1';
+const VERSION = 'v2';
 const CACHE = 'teamhub-' + VERSION;
 const SHELL = ['./', 'index.html', 'css/app.css', 'js/app.js', 'js/settle.js', 'js/config.js', 'js/backend-firebase.js',
   'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
