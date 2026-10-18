@@ -119,7 +119,7 @@ await p.click('[data-a="nav"][data-v="team"]'); await p.waitForSelector('.mrow')
 await p.click('[data-a="add-member-toggle"]'); await p.fill('#nm-name', 'חבר חדש'); await p.fill('#nm-email', 'NEW@Gmail.com'); await p.click('form[data-form="add-member"] button[type=submit]'); await sleep(900);
 assert.equal((await fake()).d.members.find(m => m.name === 'חבר חדש').email, 'new@gmail.com');
 await p.locator('details[data-k="bulk"] summary').click();
-await p.fill('#bulk-text', 'גיל מזור, gil@gmail.com\nירון פורת\tyaron@gmail.com\nמישהו לא קיים, x@y.com');
+await p.fill('#bulk-text', 'גיל מזור, gil@gmail.com\nפורת\tyaron@gmail.com\nמישהו לא קיים, x@y.com');
 await p.click('form[data-form="bulk"] button[type=submit]'); await sleep(900);
 assert.equal((await fake()).d.members.find(m => m.name === 'גיל מזור').email, 'gil@gmail.com');
 assert.ok((await p.textContent('details[data-k="bulk"]')).includes('מישהו לא קיים'));

@@ -18,6 +18,15 @@ const shortDate = s => { const [, m, d] = s.split('-'); return Number(d) + '.' +
 const weekday = s => { try { return new Date(s + 'T12:00:00').toLocaleDateString('he-IL', { weekday: 'long' }); } catch (e) { return ''; } };
 const range = ev => ev.days > 1 ? heDate(ev.startDate) + ' – ' + heDate(addDays(ev.startDate, ev.days - 1)) : heDate(ev.startDate);
 const clean1 = s => String(s || '').replace(/\s+/g, ' ').trim();
+// התאמת שם לחבר צוות: שם מדויק, ואם אין: שם חלקי (למשל "מרלא") שמתאים לחבר אחד בלבד. גרש ותווי ניקוד לא משנים.
+const normName = s => clean1(s).replace(/[׳'’`"״]/g, '').toLowerCase();
+export function matchMember(members, name) {
+  const n = normName(name); if (!n) return null;
+  const exact = members.filter(m => normName(m.name) === n); if (exact.length === 1) return exact[0];
+  const toks = n.split(' ');
+  const part = members.filter(m => { const mn = ' ' + normName(m.name) + ' '; return toks.every(t => mn.indexOf(' ' + t + ' ') !== -1 || mn.indexOf(' ' + t) !== -1); });
+  return part.length === 1 ? part[0] : null;
+}
 const store = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} };
 const load = k => { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } };
 let toastT;
@@ -541,10 +550,10 @@ document.addEventListener('submit', async ev => {
     fire(backend.saveMember({ ...m, name, email, birthday: v('em-bday'), role })); S.editMember = null; toast('נשמר'); render();
   }
   else if (k === 'bulk') {
-    const byName = new Map(S.members.map(m => [clean1(m.name), m])), lines = v('bulk-text').split(/\n+/).map(s => s.trim()).filter(Boolean);
+    const lines = v('bulk-text').split(/\n+/).map(s => s.trim()).filter(Boolean);
     let ok = 0; const miss = [];
     lines.forEach(l => {
-      const mm = l.match(/^(.*?)[\s,;\t]+([^\s,;]+@[^\s,;]+)\s*$/); const nm = mm && byName.get(clean1(mm[1]));
+      const mm = l.match(/^(.*?)[\s,;\t]+([^\s,;]+@[^\s,;]+)\s*$/); const nm = mm && matchMember(S.members, mm[1]);
       if (!nm) { miss.push(l); return; }
       fire(backend.saveMember({ ...nm, email: mm[2].toLowerCase() })); ok++;
     });
