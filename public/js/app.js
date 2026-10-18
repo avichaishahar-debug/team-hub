@@ -24,7 +24,7 @@ let toastT;
 function toast(msg, err) { const t = $('toast'); t.innerHTML = '<div class="' + (err ? 'err' : '') + '">' + esc(msg) + '</div>'; clearTimeout(toastT); toastT = setTimeout(() => { t.innerHTML = ''; }, err ? 5000 : 2500); }
 function friendly(e) {
   const c = (e && (e.code || e.message)) || '';
-  if (/permission-denied/.test(c)) return 'אין לך הרשאה לפעולה הזו';
+  if (/permission-denied/.test(c)) return 'אין לך הרשאה לפעולה הזו (' + c + ')';
   if (/unavailable|network/.test(c)) return 'אין חיבור. הפעולה תישמר ותישלח כשיחזור';
   return (e && e.message) || 'שגיאה';
 }
@@ -53,12 +53,13 @@ const initial = n => (n || '?').trim().charAt(0);
 
 /* ---------- התחברות וקישור לחבר צוות ---------- */
 let stopWatch = null;
+const withTimeout = (p, ms, what) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('לא התקבלה תשובה מהשרת (' + what + '). בדוק שמסד Firestore נוצר ושהכללים פורסמו.')), ms))]);
 async function linkFlow(user) {
   S.phase = 'linking'; render();
   try {
-    let id = await backend.getLink(user.uid);
+    let id = await withTimeout(backend.getLink(user.uid), 15000, 'users');
     if (!id) {
-      const m = await backend.findMemberByEmail(user.email);
+      const m = await withTimeout(backend.findMemberByEmail(user.email), 15000, 'members');
       if (m) { await backend.link(user.uid, m.id); id = m.id; }
     }
     if (id) { S.linkId = id; startWatch(); return; }
