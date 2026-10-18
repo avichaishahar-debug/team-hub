@@ -49,6 +49,9 @@ const curMeetup = () => S.meetups.find(m => m.id === S.meetupId);
 const meetupExpenses = id => S.expenses.filter(e => e.meetupId === id);
 const opened = (k, def) => S.open[k] === undefined ? !!def : !!S.open[k];
 const roleLabel = r => ({ admin: 'מנהל-על', manager: 'מנהל', member: 'חבר צוות' }[r] || 'חבר צוות');
+const HUES = [255, 340, 160, 205, 28, 45, 300, 185];
+const hueOf = n => { let h = 0; for (const c of String(n || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0; return HUES[h % HUES.length]; };
+const avs = n => ' style="--h:' + hueOf(n) + '"';
 const initial = n => (n || '?').trim().charAt(0);
 
 /* ---------- התחברות וקישור לחבר צוות ---------- */
@@ -141,7 +144,7 @@ function topbar() {
   const st = !S.online ? 'מחוץ לרשת' : S.pending ? 'שומר…' : (S.fromCache ? 'מרענן…' : '✓ נשמר');
   const cls = (S.pending || S.fromCache || !S.online) ? 'busy' : '';
   return '<div class="top"><h1>' + (S.view === 'team' ? 'צוות גולדפרב' : 'הוצאות מפגשים') + '</h1><div class="row"><span id="sync" class="' + cls + '">' + st + '</span>' +
-    '<button class="avatar" data-a="nav" data-v="team" aria-label="הפרופיל שלי">' + esc(initial(S.me && S.me.name)) + '</button></div></div>';
+    '<button class="avatar" data-a="nav" data-v="team" aria-label="הפרופיל שלי"' + avs(S.me && S.me.name) + '>' + esc(initial(S.me && S.me.name)) + '</button></div></div>';
 }
 
 /* ---------- הוצאות: רשימת מפגשים ---------- */
@@ -322,7 +325,7 @@ const bday = s => s ? s.split('-').slice(-2).reverse().map(Number).join('.') : '
 function teamView() {
   const me = S.me, mem = sortedMembers();
   const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
-  const profile = '<div class="card"><div class="mrow" style="border:0"><span class="avatar">' + esc(initial(me.name)) + '</span><span class="nm"><b>' + esc(me.name) + '</b><small dir="ltr" style="text-align:right">' + esc(S.authUser.email) + '</small></span><span class="badge">' + roleLabel(isOwner() ? 'admin' : me.role) + '</span></div>' +
+  const profile = '<div class="card"><div class="mrow" style="border:0"><span class="avatar"' + avs(me.name) + '>' + esc(initial(me.name)) + '</span><span class="nm"><b>' + esc(me.name) + '</b><small dir="ltr" style="text-align:right">' + esc(S.authUser.email) + '</small></span><span class="badge">' + roleLabel(isOwner() ? 'admin' : me.role) + '</span></div>' +
     '<label>יום ההולדת שלי<input type="date" id="my-bday" value="' + esc(me.birthday || '') + '" data-a-change="my-bday"></label>' +
     '<div class="row">' + (S.installEvt && !standalone ? '<button class="btn" data-a="install">התקנת האפליקציה</button>' : '') + '<button class="btn" data-a="signout">התנתקות</button></div></div>';
   const addForm = !canEdit() ? '' : S.addMember ? '<form class="card" data-form="add-member"><h3>חבר צוות חדש</h3><div class="grid"><label>שם<input id="nm-name" required maxlength="60"></label><label>מייל Google<input id="nm-email" type="email" dir="ltr" placeholder="name@gmail.com"></label><label>יום הולדת (לא חובה)<input id="nm-bday" type="date"></label></div><div class="row"><button class="btn primary" type="submit">הוספה</button><button class="btn" type="button" data-a="add-member-toggle">ביטול</button></div></form>'
@@ -332,7 +335,7 @@ function teamView() {
       (isAdmin() ? '<label>תפקיד<select id="em-role">' + ['member', 'manager', 'admin'].map(r => '<option value="' + r + '"' + (m.role === r ? ' selected' : '') + '>' + roleLabel(r) + '</option>').join('') + '</select></label>' : '') + '</div>' +
       '<div class="row"><button class="btn primary" type="submit">שמירה</button><button class="btn" type="button" data-a="em-cancel">ביטול</button><button class="btn danger' + (S.confirm === 'm' + m.id ? ' sure' : '') + '" type="button" data-a="rm-member" data-id="' + esc(m.id) + '">' + (S.confirm === 'm' + m.id ? 'בטוח? הסר' : 'הסרה') + '</button></div></form></li>';
     const sub = [m.email ? '<span dir="ltr">' + esc(m.email) + '</span>' : '<span>עדיין בלי מייל</span>', m.birthday ? '🎂 ' + bday(m.birthday) : ''].filter(Boolean).join(' · ');
-    return '<li class="mrow"><span class="avatar">' + esc(initial(m.name)) + '</span><span class="nm"><b>' + esc(m.name) + (m.role !== 'member' ? ' <span class="badge">' + roleLabel(m.role) + '</span>' : '') + '</b><small>' + sub + '</small></span>' +
+    return '<li class="mrow"><span class="avatar"' + avs(m.name) + '>' + esc(initial(m.name)) + '</span><span class="nm"><b>' + esc(m.name) + (m.role !== 'member' ? ' <span class="badge">' + roleLabel(m.role) + '</span>' : '') + '</b><small>' + sub + '</small></span>' +
       (canEdit() && (m.role !== 'admin' || isAdmin()) ? '<button class="btn link" data-a="em-edit" data-id="' + esc(m.id) + '">עריכה</button>' : '<span></span>') + '</li>';
   }).join('');
   const bulk = !canEdit() ? '' : '<details class="card" data-k="bulk"' + (opened('bulk') ? ' open' : '') + '><summary>הדבקת רשימת מיילים</summary><p class="muted small">שורה לכל אחד: שם, ואז מייל (מופרדים בפסיק, טאב או רווח). השם צריך להיות זהה לשם ברשימה.</p>' +

@@ -1,16 +1,19 @@
 :root{
-  --bg:#f2f4f2; --surface:#ffffff; --fg:#17231d; --muted:#5c6b63; --line:#d9e0db;
-  --accent:#1d6b4f; --accent-soft:#dcefe6; --accent-fg:#ffffff;
-  --warn:#a35a00; --warn-soft:#fdeed6; --bad:#b3261e; --bad-soft:#fbe4e1; --good:#1d6b4f;
-  --font-display:"Secular One","Assistant",system-ui,sans-serif;
-  --nav-h:60px;
+  --bg:#f5f2ff; --surface:#ffffff; --fg:#231b4d; --muted:#6b6590; --line:#e3ddf7;
+  --accent:#6c4cf1; --accent-soft:#ece7ff; --accent-fg:#ffffff;
+  --warn:#b25e00; --warn-soft:#fff0d6; --bad:#d6285a; --bad-soft:#ffe3ec; --good:#0d9f73;
+  --mint:#14b886; --mint-soft:#dcf8ee; --sun:#ffc233; --coral:#ff6b8a; --sky:#2da7f5; --tang:#ff8a3d;
+  --r:16px;
+  --font-display:"Rubik","Assistant",system-ui,sans-serif;
+  --nav-h:62px;
   --font-body:"Assistant",system-ui,-apple-system,"Segoe UI",sans-serif;
 }
 @media (prefers-color-scheme: dark){
   :root{
-    --bg:#0f1713; --surface:#18231d; --fg:#e6efe9; --muted:#93a69b; --line:#2a3a31;
-    --accent:#4fc08e; --accent-soft:#16372a; --accent-fg:#07251a;
-    --warn:#f0b05a; --warn-soft:#3a2a10; --bad:#ff8d83; --bad-soft:#402220; --good:#4fc08e;
+    --bg:#15112e; --surface:#201a42; --fg:#efeafe; --muted:#a69fcf; --line:#352d63;
+    --accent:#9d86ff; --accent-soft:#32285f; --accent-fg:#150f33;
+    --warn:#ffc266; --warn-soft:#41300f; --bad:#ff7a9f; --bad-soft:#4a1d30; --good:#4fdcae;
+    --mint:#3fd9a6; --mint-soft:#15413a;
     color-scheme:dark;
   }
 }
@@ -18,7 +21,7 @@
 body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:16px;line-height:1.5;
   padding:20px max(16px,env(safe-area-inset-left,0px)) 64px max(16px,env(safe-area-inset-right,0px))}
 .wrap{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
-h1,h2,h3{font-family:var(--font-display);font-weight:400;margin:0;text-wrap:balance}
+h1,h2,h3{font-family:var(--font-display);font-weight:600;margin:0;text-wrap:balance}
 h1{font-size:clamp(1.6rem,5vw,2.1rem)} h2{font-size:1.3rem} h3{font-size:1.05rem}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
@@ -45,7 +48,7 @@ input,select,textarea{border:1px solid var(--line);background:var(--bg);border-r
 .events{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;list-style:none;margin:0;padding:0}
 .ev{width:100%;text-align:right;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:6px}
 .ev:hover{border-color:var(--accent)}
-.ev b{font-family:var(--font-display);font-weight:400;font-size:1.1rem}
+.ev b{font-family:var(--font-display);font-weight:600;font-size:1.1rem}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
 .stat{background:var(--bg);border-radius:10px;padding:10px 12px}
 .stat span{display:block;font-size:.8rem;color:var(--muted);font-weight:600}
@@ -162,3 +165,72 @@ textarea{min-height:110px;resize:vertical}
 button.avatar{border:0;cursor:pointer;font:inherit;font-weight:800}
 
 .nav[hidden]{display:none}
+
+/* ---- עיצוב צבעוני (v5): הצבע נושא משמעות ---- */
+/* סגול = פעולה; ירוק-מנטה = נוכחות וזיכוי; כל סוג הוצאה וכל אדם עם גוון משלו */
+.card{border-radius:var(--r);box-shadow:0 1px 0 rgba(35,27,77,.04),0 6px 18px -10px rgba(108,76,241,.35)}
+.btn{border-radius:12px;padding:8px 16px}
+.btn.primary{background:linear-gradient(135deg,#7a5cff,#5a3be0);border-color:transparent;box-shadow:0 4px 12px -4px rgba(108,76,241,.6)}
+.btn:hover{border-color:var(--accent)}
+input,select,textarea{border-radius:12px;background:var(--surface);border-color:var(--line)}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+.badge{background:var(--accent-soft);color:var(--accent)}
+.badge.admin{background:var(--sun);color:#4a3200}
+
+/* כותרת עליונה: המקום היחיד עם מעבר צבעים */
+.top{background:linear-gradient(120deg,#6c4cf1 0%,#9a4dff 55%,#ff6b8a 130%);color:#fff;border-radius:20px;padding:12px 14px;
+  box-shadow:0 10px 24px -12px rgba(108,76,241,.75)}
+.top h1{color:#fff;font-size:clamp(1.25rem,4.5vw,1.6rem)}
+.top #sync{color:rgba(255,255,255,.85)} .top #sync.busy{color:#ffe08a} .top #sync.err{color:#ffd1dc}
+.top .avatar{background:#fff;color:#5a3be0}
+
+.avatar{background:hsl(var(--h,255) 85% 91%);color:hsl(var(--h,255) 60% 30%)}
+@media (prefers-color-scheme: dark){.avatar{background:hsl(var(--h,255) 40% 28%);color:hsl(var(--h,255) 90% 88%)}}
+
+.tab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+.tabs{background:var(--bg)}
+.pill span{background:var(--surface)}
+.pill input:checked+span{background:linear-gradient(135deg,#7a5cff,#5a3be0);border-color:transparent}
+
+/* מפגשים: פס צבע בצד, גוון שונה לכל כרטיס */
+.ev{border-radius:var(--r);border-inline-start:6px solid var(--accent);box-shadow:0 6px 18px -12px rgba(108,76,241,.5)}
+.events>li:nth-child(5n+1) .ev{border-inline-start-color:var(--accent)}
+.events>li:nth-child(5n+2) .ev{border-inline-start-color:var(--coral)}
+.events>li:nth-child(5n+3) .ev{border-inline-start-color:var(--mint)}
+.events>li:nth-child(5n+4) .ev{border-inline-start-color:var(--sun)}
+.events>li:nth-child(5n+5) .ev{border-inline-start-color:var(--sky)}
+
+/* סוגי הוצאה */
+.type{border-radius:99px;padding:2px 11px}
+.type.t-מזון{background:#ffe9d6;color:#a8500a}
+.type.t-אלכוהול{background:#ffe0ea;color:#b01d4e}
+.type.t-אטרקציה{background:#dff1ff;color:#0b6aa8}
+.type.t-לינה{background:#dcf8ee;color:#0a7a58}
+.type.t-אחר{background:var(--accent-soft);color:var(--muted);border:0}
+@media (prefers-color-scheme: dark){
+  .type.t-מזון{background:#4a2c12;color:#ffbe8a} .type.t-אלכוהול{background:#4d1a31;color:#ff9fbd}
+  .type.t-אטרקציה{background:#123650;color:#8fd0ff} .type.t-לינה{background:#134238;color:#7ee8c3}
+}
+
+/* סיכום */
+.mini{border-radius:14px;border:0;border-top:4px solid var(--accent);box-shadow:0 4px 12px -8px rgba(35,27,77,.4)}
+.strip .mini:nth-child(1){border-top-color:var(--sun)} .strip .mini:nth-child(2){border-top-color:var(--coral)} .strip .mini:nth-child(3){border-top-color:var(--mint)}
+.stat{background:var(--accent-soft);border-radius:14px}
+.xfer{background:var(--accent-soft);border-radius:14px}
+.pos{color:var(--good)} .neg{color:var(--bad)}
+
+/* נוכחות: ירוק-מנטה = הגיע */
+.daybtn{border-radius:14px}
+.daybtn[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.who{border-radius:14px;background:var(--surface)}
+.who.on{background:var(--mint-soft);border-color:var(--mint)}
+.who.on .tick{background:var(--mint);border-color:var(--mint);color:#fff}
+
+/* כפתור הוספה צף וניווט תחתון */
+.btn.primary.fab,.fab{background:linear-gradient(135deg,#ff7a59,#ff4f87);border-color:transparent;color:#fff;box-shadow:0 10px 24px -6px rgba(255,79,135,.65)}
+.nav{border-top:0;border-radius:20px 20px 0 0;box-shadow:0 -8px 24px -14px rgba(35,27,77,.5)}
+.nav button{position:relative}
+.nav button[aria-current="page"]{color:var(--accent)}
+.nav button[aria-current="page"]::before{content:"";position:absolute;top:0;width:34px;height:4px;border-radius:0 0 4px 4px;background:var(--accent)}
+.gate img{border-radius:26px;box-shadow:0 14px 30px -12px rgba(108,76,241,.7)}
+.offline{border-radius:12px}
