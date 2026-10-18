@@ -10,6 +10,8 @@ else { backend = (await import('./backend-firebase.js')).backend; }
 /* ---------- עזרים ---------- */
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+/** העברות כסף מעוגלות כלפי מעלה לשקל שלם (אי אפשר להעביר באגורות) */
+const settleR = (ev, ex, nm) => { const r = settle(ev, ex, nm); r.transfers = r.transfers.map(t => ({ ...t, cents: Math.ceil(t.cents / 100) * 100 })); return r; };
 const fmt = c => (c / 100).toLocaleString('he-IL', { minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2 }) + ' ₪';
 const pad = n => String(n).padStart(2, '0');
 const todayStr = () => { const d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
@@ -210,7 +212,7 @@ function myOpenTransfers() {
   const out = [];
   S.meetups.forEach(ev => {
     const ex = meetupExpenses(ev.id); if (!ex.length) return;
-    settle(ev, ex, nameOf).transfers.forEach(t => { if ((t.from === me || t.to === me) && !payOf(ev, t)) out.push({ ev, t }); });
+    settleR(ev, ex, nameOf).transfers.forEach(t => { if ((t.from === me || t.to === me) && !payOf(ev, t)) out.push({ ev, t }); });
   });
   return out;
 }
@@ -277,7 +279,7 @@ function homeView() {
 
 /* ---------- מפגש ---------- */
 function meetupView() {
-  const ev = curMeetup(), ex = meetupExpenses(ev.id), r = settle(ev, ex, nameOf);
+  const ev = curMeetup(), ex = meetupExpenses(ev.id), r = settleR(ev, ex, nameOf);
   const perDay = r.personDays ? Math.round(r.total / r.personDays) : 0;
   const head = '<div class="ehead"><button class="btn sm" data-a="back">› חזרה</button><h2>' + esc(ev.name) + '</h2>' +
     (canEdit() ? '<button class="btn sm" data-a="edit-meetup-toggle">עריכת מפגש</button>' : '') + '</div>' +
@@ -602,7 +604,7 @@ document.addEventListener('click', async ev => {
     markDay(prev.filter(i => cur.indexOf(i) === -1), cur.filter(i => prev.indexOf(i) === -1));
   }
   else if (a === 'copy-set') {
-    const e = curMeetup(), r = settle(e, meetupExpenses(e.id), nameOf);
+    const e = curMeetup(), r = settleR(e, meetupExpenses(e.id), nameOf);
     copyText('התחשבנות ' + e.name + ' (' + range(e) + ')\nסה״כ הוצאות: ' + fmt(r.total) + '\n\n' + (r.transfers.length ? r.transfers.map(t => nameOf(t.from) + ' ← ' + fmt(t.cents) + ' ← ' + nameOf(t.to)).join('\n') : 'כולם מאוזנים'));
   }
   else if (a === 'add-member-toggle') { S.addMember = !S.addMember; render(); }
