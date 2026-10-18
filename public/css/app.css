@@ -257,8 +257,6 @@ label.need input{border-color:#ffb84a}
 body{padding-top:calc(env(safe-area-inset-top,0px) + 10px)}
 html{background:var(--bg)}
 
-/* iPhone במצב אפליקציה: התפריט התחתון נצמד לתחתית המסך האמיתית (גם כשהדפדפן מדווח על חלון נמוך יותר) */
-@supports (height: 100lvh) {
-  .nav{bottom:auto;top:calc(100lvh - var(--nav-h) - env(safe-area-inset-bottom,0px))}
-  .nav::after{content:"";position:absolute;top:100%;inset-inline:0;height:80px;background:var(--surface)}
-}
+/* iPhone במצב אפליקציה: בדפים קצרים החלון מתכווץ והתפריט "קופץ" למעלה. מכריחים את הדף למלא את כל המסך (ובדפים ארוכים זה כבר עובד). */
+html{min-height:100lvh}
+body{min-height:100lvh;box-sizing:border-box}
