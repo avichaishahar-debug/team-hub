@@ -5,14 +5,27 @@ import {
   getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithRedirect, signInWithPopup, getRedirectResult, signOut as fbSignOut
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import {
-  initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, onSnapshot, setDoc, updateDoc,
+  initializeFirestore, memoryLocalCache, persistentLocalCache, persistentMultipleTabManager, collection, doc, onSnapshot, setDoc, updateDoc,
   deleteDoc, getDocs, query, where, writeBatch, arrayUnion, arrayRemove, serverTimestamp, getDoc, deleteField
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 import { firebaseConfig } from './config.js';
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true, localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
+// IndexedDB לא זמין בחלון פרטי של Firefox ובהגנת טביעת-אצבע: אז עובדים עם מטמון בזיכרון במקום להיתקע.
+const idbOk = () => new Promise(res => {
+  try {
+    const r = indexedDB.open('__th_probe');
+    r.onsuccess = () => { try { r.result.close(); indexedDB.deleteDatabase('__th_probe'); } catch (e) {} res(true); };
+    r.onerror = () => res(false); r.onblocked = () => res(false);
+    setTimeout(() => res(false), 1500);
+  } catch (e) { res(false); }
+});
+const persist = await idbOk();
+const db = initializeFirestore(app, {
+  experimentalAutoDetectLongPolling: true,
+  localCache: persist ? persistentLocalCache({ tabManager: persistentMultipleTabManager() }) : memoryLocalCache()
+});
 
 const col = n => collection(db, n);
 const stamp = v => (v && v.toMillis) ? v.toMillis() : (typeof v === 'number' ? v : Date.now());
