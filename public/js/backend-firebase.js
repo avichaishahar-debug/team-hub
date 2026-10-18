@@ -25,7 +25,7 @@ const persist = await idbOk();
 const db = initializeFirestore(app, {
   experimentalAutoDetectLongPolling: true,
   localCache: persist ? persistentLocalCache({ tabManager: persistentMultipleTabManager() }) : memoryLocalCache()
-});
+}, 'default');   // שם מסד הנתונים בפרויקט הזה הוא default (בלי סוגריים), לא (default)
 
 const col = n => collection(db, n);
 const stamp = v => (v && v.toMillis) ? v.toMillis() : (typeof v === 'number' ? v : Date.now());
