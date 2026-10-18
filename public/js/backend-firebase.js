@@ -12,7 +12,7 @@ import { firebaseConfig } from './config.js';
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
+const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true, localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
 
 const col = n => collection(db, n);
 const stamp = v => (v && v.toMillis) ? v.toMillis() : (typeof v === 'number' ? v : Date.now());
