@@ -1,0 +1,10 @@
+{
+  "name": "team-hub",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node tests/settle.test.js && node tests/e2e.js",
+    "test:rules": "firebase emulators:exec --only firestore \"node tests/rules.test.js\"",
+    "serve": "python3 -m http.server 8080 --directory public"
+  }
+}

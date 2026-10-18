@@ -1,0 +1,85 @@
+rules_version = '2';
+
+// כללי האבטחה של Team Hub. הם נאכפים בשרת של גוגל, גם אם מישהו עוקף את האפליקציה.
+// חשוב: אחרי שינוי בקובץ הזה צריך לפרוס מחדש (firebase deploy --only firestore:rules).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- בעל המערכת: תמיד מנהל-על. לשנות גם ב-public/js/config.js ----
+    function ownerEmail() { return 'avichaishahar@gmail.com'; }
+
+    function signedIn() { return request.auth != null && request.auth.token.email_verified == true; }
+    function isOwner()  { return signedIn() && request.auth.token.email == ownerEmail(); }
+
+    function userDoc()  { return /databases/$(database)/documents/users/$(request.auth.uid); }
+    function linked()   { return signedIn() && exists(userDoc()); }
+    function myId()     { return get(userDoc()).data.memberId; }
+    function myDoc()    { return /databases/$(database)/documents/members/$(myId()); }
+    function myRole()   { return get(myDoc()).data.role; }
+
+    function isAdmin()   { return isOwner() || (linked() && myRole() == 'admin'); }
+    function isManager() { return isAdmin() || (linked() && myRole() == 'manager'); }
+
+    function str(v, max) { return v is string && v.size() > 0 && v.size() <= max; }
+    function roleOk(r)   { return r in ['member', 'manager', 'admin']; }
+
+    // ---- קישור משתמש מחובר לחבר צוות (לפי המייל המאומת) ----
+    match /users/{uid} {
+      allow read:   if signedIn() && request.auth.uid == uid;
+      allow create: if signedIn() && request.auth.uid == uid
+                    && request.resource.data.keys().hasOnly(['memberId'])
+                    && request.resource.data.memberId is string
+                    && get(/databases/$(database)/documents/members/$(request.resource.data.memberId)).data.email == request.auth.token.email;
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+
+    // ---- חברי צוות ----
+    match /members/{id} {
+      // מי שלא מקושר עדיין יכול למצוא רק את הרשומה עם המייל שלו
+      allow read: if isOwner() || linked()
+                  || (signedIn() && resource.data.email == request.auth.token.email);
+
+      allow create: if (isAdmin() || (isManager() && request.resource.data.role == 'member'))
+                    && str(request.resource.data.name, 60) && roleOk(request.resource.data.role);
+
+      allow update: if str(request.resource.data.name, 60) && roleOk(request.resource.data.role)
+                    && (
+                      isAdmin()
+                      || (isManager() && request.resource.data.role == resource.data.role && resource.data.role != 'admin')
+                      // כל אחד יכול לעדכן פרטים אישיים משלו, בלי לגעת בתפקיד ובמייל
+                      || (linked() && myId() == id
+                          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['birthday', 'phone']))
+                    );
+
+      allow delete: if isManager() && resource.data.role != 'admin';
+    }
+
+    // ---- מפגשים ----
+    match /meetups/{id} {
+      allow read: if linked() || isOwner();
+      allow create, update: if isManager() && str(request.resource.data.name, 80)
+                    && request.resource.data.days is int && request.resource.data.days >= 1 && request.resource.data.days <= 14;
+      allow delete: if isManager();
+    }
+
+    // ---- הוצאות ----
+    match /expenses/{id} {
+      allow read: if linked() || isOwner();
+
+      // כל חבר צוות מקושר מוסיף הוצאה, ורק על שמו
+      allow create: if (linked() && request.resource.data.addedById == myId() || isAdmin())
+                    && request.resource.data.amountCents is int
+                    && request.resource.data.amountCents > 0 && request.resource.data.amountCents <= 100000000
+                    && request.resource.data.type in ['מזון', 'אלכוהול', 'אטרקציה', 'לינה', 'אחר']
+                    && str(request.resource.data.meetupId, 64) && str(request.resource.data.payerId, 64)
+                    && exists(/databases/$(database)/documents/meetups/$(request.resource.data.meetupId));
+
+      allow update: if isManager()
+                    && request.resource.data.amountCents is int && request.resource.data.amountCents > 0
+                    && request.resource.data.amountCents <= 100000000;
+      allow delete: if isManager();
+    }
+
+    match /{other=**} { allow read, write: if false; }
+  }
+}
