@@ -161,6 +161,7 @@ await p.screenshot({ path: 'shot_pick.png' });
 assert.equal(await p.locator('[data-a="pick-me"]', { hasText: 'אביחי שחר' }).count(), 0);   // מנהלים לא מופיעים ברשימה
 await p.click('[data-a="pick-me"]:has-text("עודד מרלא")'); await p.waitForSelector('#nav:not([hidden])');
 assert.equal((await fake()).l['u-x'], await memId('עודד מרלא'));
+assert.equal(await p.evaluate(() => window.__fake.linkEmails['u-x']), 'stranger@gmail.com');   // מייל החשבון נשמר בקישור
 await p.click('[data-a="nav"][data-v="team"]'); assert.equal(await p.locator('details[data-k="join"]').count(), 0);   // חבר רגיל לא רואה את הקוד
 // מנהל-על מנתק את הקישור
 await as('avichaishahar@gmail.com', 'u-owner'); await p.waitForSelector('#nav:not([hidden])');

@@ -65,9 +65,11 @@ export const backend = {
   },
   async getLink(uid) {
     const d = await getDoc(doc(db, 'users', uid));
-    return d.exists() ? d.data().memberId : null;
+    return d.exists() ? { memberId: d.data().memberId, email: d.data().email || '' } : null;
   },
-  link: (uid, memberId) => setDoc(doc(db, 'users', uid), { memberId }),
+  link: (uid, memberId, email) => setDoc(doc(db, 'users', uid), clean({ memberId, email: email || undefined })),
+  /** קישור ישן בלי מייל: משלימים את מייל החשבון. */
+  setLinkEmail: (uid, email) => updateDoc(doc(db, 'users', uid), { email }),
   unlink: uid => deleteDoc(doc(db, 'users', uid)),
 
   /** קוד הצטרפות: שליחת הקוד (השרת מאמת מול הקוד הנוכחי) ואז קריאת רשימת השמות. */
@@ -79,7 +81,7 @@ export const backend = {
   async getJoinCode() { const d = await getDoc(doc(db, 'config', 'join')); return d.exists() ? d.data().code : ''; },
   setJoinCode: code => setDoc(doc(db, 'config', 'join'), { code }),
   /** מנהל-על: אילו חברי צוות כבר מקושרים לחשבון Google. */
-  async listLinked() { const s = await getDocs(col('users')); return s.docs.map(d => d.data().memberId); },
+  async listLinked() { const s = await getDocs(col('users')); return s.docs.map(d => ({ memberId: d.data().memberId, email: d.data().email || '' })); },
   /** מנהל-על: מנתק את כל החשבונות המקושרים לחבר צוות, כדי שיבחר מחדש. */
   async unlinkMember(memberId) {
     const s = await getDocs(query(col('users'), where('memberId', '==', memberId)));

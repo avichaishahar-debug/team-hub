@@ -52,10 +52,17 @@ service cloud.firestore {
     match /users/{uid} {
       allow read:   if (signedIn() && request.auth.uid == uid) || isAdmin();
       allow create: if signedIn() && request.auth.uid == uid
-                    && request.resource.data.keys().hasOnly(['memberId'])
+                    && request.resource.data.keys().hasAll(['memberId'])
+                    && request.resource.data.keys().hasOnly(['memberId', 'email'])
                     && request.resource.data.memberId is string
+                    && (!('email' in request.resource.data) || request.resource.data.email == request.auth.token.email)
                     && (memberOf(request.resource.data.memberId).email == request.auth.token.email
                         || (joinOk() && memberOf(request.resource.data.memberId).role == 'member'));
+      // מילוי מייל החשבון בקישור קיים (לא משנה למי הוא מקושר)
+      allow update: if signedIn() && request.auth.uid == uid
+                    && request.resource.data.keys().hasOnly(['memberId', 'email'])
+                    && request.resource.data.memberId == resource.data.memberId
+                    && request.resource.data.email == request.auth.token.email;
       allow delete: if (signedIn() && request.auth.uid == uid) || isAdmin();
     }
 

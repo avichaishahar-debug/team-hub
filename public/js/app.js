@@ -69,10 +69,12 @@ const withTimeout = (p, ms, what) => Promise.race([p, new Promise((_, rej) => se
 async function linkFlow(user) {
   S.phase = 'linking'; render();
   try {
-    let id = await withTimeout(backend.getLink(user.uid), 15000, 'users');
+    const lk = await withTimeout(backend.getLink(user.uid), 15000, 'users');
+    let id = lk && lk.memberId;
+    if (lk && !lk.email && user.email) backend.setLinkEmail(user.uid, user.email).catch(() => {});   // משלימים את מייל החשבון בקישור ישן
     if (!id) {
       const m = await withTimeout(backend.findMemberByEmail(user.email), 15000, 'members');
-      if (m) { await backend.link(user.uid, m.id); id = m.id; }
+      if (m) { await backend.link(user.uid, m.id, user.email); id = m.id; }
     }
     if (id) { S.linkId = id; startWatch(); return; }
     if (user.email === OWNER_EMAIL) { S.phase = 'bootstrap'; render(); return; }
@@ -344,6 +346,13 @@ const memberUsed = id => S.expenses.some(e => e.payerId === id || e.addedById ==
   S.meetups.some(m => Object.keys(participants(m)).indexOf(id) !== -1);
 const bday = s => s ? s.split('-').slice(-2).reverse().map(Number).join('.') : '';
 
+function linkBadge(m) {
+  if (!isAdmin()) return '';
+  const acc = (S.linked || []).filter(l => l.memberId === m.id);
+  if (!acc.length) return '';
+  const emails = [...new Set(acc.map(l => l.email).filter(e => e && e !== m.email))];
+  return '<span class="pos">✓ מחובר' + (emails.length ? ' עם <span dir="ltr">' + emails.map(esc).join(', ') + '</span>' : '') + '</span>';
+}
 function teamView() {
   const me = S.me, mem = sortedMembers();
   const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
@@ -356,7 +365,7 @@ function teamView() {
     if (S.editMember === m.id) return '<li><form class="card" data-form="edit-member"><div class="grid"><label>שם<input id="em-name" required maxlength="60" value="' + esc(m.name) + '"></label><label>מייל<input id="em-email" type="email" dir="ltr" value="' + esc(m.email || '') + '"></label><label>יום הולדת<input id="em-bday" type="date" value="' + esc(m.birthday || '') + '"></label>' +
       (isAdmin() ? '<label>תפקיד<select id="em-role">' + ['member', 'manager', 'admin'].map(r => '<option value="' + r + '"' + (m.role === r ? ' selected' : '') + '>' + roleLabel(r) + '</option>').join('') + '</select></label>' : '') + '</div>' +
       '<div class="row"><button class="btn primary" type="submit">שמירה</button><button class="btn" type="button" data-a="em-cancel">ביטול</button>' + (isAdmin() ? '<button class="btn" type="button" data-a="unlink-member" data-id="' + esc(m.id) + '">ניתוק חשבון</button>' : '') + '<button class="btn danger' + (S.confirm === 'm' + m.id ? ' sure' : '') + '" type="button" data-a="rm-member" data-id="' + esc(m.id) + '">' + (S.confirm === 'm' + m.id ? 'בטוח? הסר' : 'הסרה') + '</button></div></form></li>';
-    const sub = [m.email ? '<span dir="ltr">' + esc(m.email) + '</span>' : '<span>עדיין בלי מייל</span>', m.birthday ? '🎂 ' + bday(m.birthday) : '', isAdmin() && (S.linked || []).indexOf(m.id) !== -1 ? '<span class="pos">✓ מחובר</span>' : ''].filter(Boolean).join(' · ');
+    const sub = [m.email ? '<span dir="ltr">' + esc(m.email) + '</span>' : '<span>עדיין בלי מייל</span>', m.birthday ? '🎂 ' + bday(m.birthday) : '', linkBadge(m)].filter(Boolean).join(' · ');
     return '<li class="mrow"><span class="avatar"' + avs(m.name) + '>' + esc(initial(m.name)) + '</span><span class="nm"><b>' + esc(m.name) + (m.role !== 'member' ? ' <span class="badge">' + roleLabel(m.role) + '</span>' : '') + '</b><small>' + sub + '</small></span>' +
       (canEdit() && (m.role !== 'admin' || isAdmin()) ? '<button class="btn link" data-a="em-edit" data-id="' + esc(m.id) + '">עריכה</button>' : '<span></span>') + '</li>';
   }).join('');
@@ -412,7 +421,7 @@ document.addEventListener('click', async ev => {
   else if (a === 'signout') { await backend.signOut(); }
   else if (a === 'reload') { location.reload(); }
   else if (a === 'pick-me') {
-    try { await backend.link(S.authUser.uid, id); S.linkId = id; startWatch(); } catch (e) { toast(friendly(e), true); }
+    try { await backend.link(S.authUser.uid, id, S.authUser.email); S.linkId = id; startWatch(); } catch (e) { toast(friendly(e), true); }
   }
   else if (a === 'join-gen') { const c = 'gf-' + Math.random().toString(36).slice(2, 8); const i = $('jc-set'); if (i) i.value = c; }
   else if (a === 'join-copy') {
@@ -494,7 +503,7 @@ document.addEventListener('submit', async ev => {
     const id = backend.newId();
     try {
       await backend.saveMember({ id, name, email: S.authUser.email, role: 'admin', birthday: '' });
-      await backend.link(S.authUser.uid, id); S.linkId = id; startWatch();
+      await backend.link(S.authUser.uid, id, S.authUser.email); S.linkId = id; startWatch();
     } catch (e) { toast(friendly(e), true); }
   }
   else if (k === 'new-meetup') {
