@@ -49,7 +49,7 @@ const curMeetup = () => S.meetups.find(m => m.id === S.meetupId);
 const meetupExpenses = id => S.expenses.filter(e => e.meetupId === id);
 const opened = (k, def) => S.open[k] === undefined ? !!def : !!S.open[k];
 const roleLabel = r => ({ admin: 'מנהל-על', manager: 'מנהל', member: 'חבר צוות' }[r] || 'חבר צוות');
-const HUES = [255, 340, 160, 205, 28, 45, 300, 185];
+const HUES = [205, 160, 28, 45, 185, 120, 10, 225];
 const hueOf = n => { let h = 0; for (const c of String(n || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0; return HUES[h % HUES.length]; };
 const avs = n => ' style="--h:' + hueOf(n) + '"';
 const initial = n => (n || '?').trim().charAt(0);
@@ -66,7 +66,9 @@ async function linkFlow(user) {
       if (m) { await backend.link(user.uid, m.id); id = m.id; }
     }
     if (id) { S.linkId = id; startWatch(); return; }
-    S.phase = user.email === OWNER_EMAIL ? 'bootstrap' : 'notInvited'; render();
+    if (user.email === OWNER_EMAIL) { S.phase = 'bootstrap'; render(); return; }
+    try { S.roster = await backend.listRoster(); S.phase = 'pick'; } catch (e) { S.phase = 'notInvited'; }   // כבר הקליד קוד בעבר?
+    render();
   } catch (e) { S.phase = 'error'; S.error = friendly(e); render(); }
 }
 function startWatch() {
@@ -81,7 +83,10 @@ function startWatch() {
 }
 async function resolveMe() {
   S.me = M(S.linkId) || null;
-  if (S.me && S.phase !== 'ready') { S.phase = 'ready'; restoreLast(); }
+  if (S.me && S.phase !== 'ready') {
+    S.phase = 'ready'; restoreLast();
+    if (isAdmin()) backend.getJoinCode().then(c => { S.joinCode = c || ''; scheduleRender(); }).catch(() => {});
+  }
   else if (!S.me && S.phase === 'syncing' && !S.fromCache && S.members.length) {
     // הקישור הישן מצביע על חבר שנמחק: מנקים ומקשרים מחדש לפי המייל
     if (stopWatch) { stopWatch(); stopWatch = null; }
@@ -131,8 +136,14 @@ function gateView() {
   const out = '<button class="btn" data-a="signout">התנתקות</button>';
   if (S.phase === 'signedOut') return '<div class="gate">' + logo + '<h1>צוות גולדפרב</h1><p class="muted">הוצאות מפגשים, ימי הולדת ואירועים במקום אחד.</p>' +
     '<button class="btn primary" style="padding:12px 24px;font-size:1.05rem" data-a="signin">התחברות עם Google</button></div>';
-  if (S.phase === 'notInvited') return '<div class="gate">' + logo + '<div class="card"><h2>עוד לא הוספו אותך</h2><p>המייל <b dir="ltr">' + esc(S.authUser.email) +
-    '</b> לא רשום בצוות. בקש ממנהל להוסיף אותו, ואז התחבר שוב. אפשר גם להתחבר עם חשבון Google אחר.</p><div class="row">' + out + '</div></div></div>';
+  if (S.phase === 'notInvited') return '<div class="gate">' + logo + '<div class="card"><h2>הצטרפות לצוות</h2><p>המייל <b dir="ltr">' + esc(S.authUser.email) +
+    '</b> לא רשום בצוות. אם קיבלת קוד הצטרפות, הקלד אותו כאן ובחר את השמך מהרשימה. אפשר גם להתחבר עם חשבון Google אחר.</p>' +
+    '<form data-form="join-code"><label>קוד הצטרפות<input id="jc-code" dir="ltr" autocomplete="off" autocapitalize="off" required maxlength="40"></label>' +
+    '<div class="row" style="margin-top:12px"><button class="btn primary" type="submit">המשך</button>' + out + '</div></form></div></div>';
+  if (S.phase === 'pick') return '<div class="gate">' + logo + '<div class="card"><h2>מי אתה?</h2><p class="muted">בחר את השם שלך. הבחירה נשמרת לחשבון הזה, ואם טעית אפשר לבקש ממנהל-על לאפס אותה.</p>' +
+    '<div class="who-grid">' + (S.roster || []).filter(m => m.role === 'member').sort((x, y) => x.name.localeCompare(y.name, 'he')).map(m =>
+      '<button class="who" data-a="pick-me" data-id="' + esc(m.id) + '"><span class="avatar"' + avs(m.name) + '>' + esc(initial(m.name)) + '</span>' + esc(m.name) + '</button>').join('') +
+    '</div><p class="muted small">מנהלים נכנסים לפי המייל שלהם, ולכן הם לא מופיעים כאן.</p><div class="row">' + out + '</div></div></div>';
   if (S.phase === 'bootstrap') return '<div class="gate">' + logo + '<div class="card"><h2>ברוך הבא, בעל המערכת</h2><p>זו הכניסה הראשונה. ניצור לך פרופיל מנהל-על.</p>' +
     '<form data-form="bootstrap"><label>השם שיוצג<input id="bs-name" required maxlength="60" value="' + esc(S.authUser.name) + '"></label>' +
     '<div class="row" style="margin-top:12px"><button class="btn primary" type="submit">יצירת פרופיל</button>' + out + '</div></form></div></div>';
@@ -333,16 +344,21 @@ function teamView() {
   const rows = mem.map(m => {
     if (S.editMember === m.id) return '<li><form class="card" data-form="edit-member"><div class="grid"><label>שם<input id="em-name" required maxlength="60" value="' + esc(m.name) + '"></label><label>מייל<input id="em-email" type="email" dir="ltr" value="' + esc(m.email || '') + '"></label><label>יום הולדת<input id="em-bday" type="date" value="' + esc(m.birthday || '') + '"></label>' +
       (isAdmin() ? '<label>תפקיד<select id="em-role">' + ['member', 'manager', 'admin'].map(r => '<option value="' + r + '"' + (m.role === r ? ' selected' : '') + '>' + roleLabel(r) + '</option>').join('') + '</select></label>' : '') + '</div>' +
-      '<div class="row"><button class="btn primary" type="submit">שמירה</button><button class="btn" type="button" data-a="em-cancel">ביטול</button><button class="btn danger' + (S.confirm === 'm' + m.id ? ' sure' : '') + '" type="button" data-a="rm-member" data-id="' + esc(m.id) + '">' + (S.confirm === 'm' + m.id ? 'בטוח? הסר' : 'הסרה') + '</button></div></form></li>';
+      '<div class="row"><button class="btn primary" type="submit">שמירה</button><button class="btn" type="button" data-a="em-cancel">ביטול</button>' + (isAdmin() ? '<button class="btn" type="button" data-a="unlink-member" data-id="' + esc(m.id) + '">ניתוק חשבון</button>' : '') + '<button class="btn danger' + (S.confirm === 'm' + m.id ? ' sure' : '') + '" type="button" data-a="rm-member" data-id="' + esc(m.id) + '">' + (S.confirm === 'm' + m.id ? 'בטוח? הסר' : 'הסרה') + '</button></div></form></li>';
     const sub = [m.email ? '<span dir="ltr">' + esc(m.email) + '</span>' : '<span>עדיין בלי מייל</span>', m.birthday ? '🎂 ' + bday(m.birthday) : ''].filter(Boolean).join(' · ');
     return '<li class="mrow"><span class="avatar"' + avs(m.name) + '>' + esc(initial(m.name)) + '</span><span class="nm"><b>' + esc(m.name) + (m.role !== 'member' ? ' <span class="badge">' + roleLabel(m.role) + '</span>' : '') + '</b><small>' + sub + '</small></span>' +
       (canEdit() && (m.role !== 'admin' || isAdmin()) ? '<button class="btn link" data-a="em-edit" data-id="' + esc(m.id) + '">עריכה</button>' : '<span></span>') + '</li>';
   }).join('');
+  const joinCard = !isAdmin() ? '' : '<details class="card" data-k="join"' + (opened('join') ? ' open' : '') + '><summary>קוד הצטרפות לצוות</summary>' +
+    '<p class="muted small">מי שנכנס עם Google ולא רשום לפי מייל מקליד את הקוד ובוחר את שמו. החלפת הקוד חוסמת הצטרפות חדשה עם הקוד הישן, והחברים המקושרים נשארים.</p>' +
+    '<form data-form="join-set"><label>הקוד<input id="jc-set" dir="ltr" minlength="4" maxlength="40" required autocomplete="off" value="' + esc(S.joinCode || '') + '"></label>' +
+    '<div class="row" style="margin-top:8px"><button class="btn primary" type="submit">שמירת קוד</button><button class="btn" type="button" data-a="join-gen">קוד אקראי</button>' +
+    (S.joinCode ? '<button class="btn" type="button" data-a="join-copy">העתקת הודעה לצוות</button>' : '') + '</div></form></details>';
   const bulk = !canEdit() ? '' : '<details class="card" data-k="bulk"' + (opened('bulk') ? ' open' : '') + '><summary>הדבקת רשימת מיילים</summary><p class="muted small">שורה לכל אחד: שם, ואז מייל (מופרדים בפסיק, טאב או רווח). השם צריך להיות זהה לשם ברשימה.</p>' +
     '<form data-form="bulk"><textarea id="bulk-text" dir="auto" placeholder="גיל מזור, gil@gmail.com"></textarea><div class="row" style="margin-top:8px"><button class="btn primary" type="submit">עדכון מיילים</button></div></form>' + (S.bulkResult ? '<p class="small" style="white-space:pre-wrap">' + esc(S.bulkResult) + '</p>' : '') + '</details>';
   const imp = !isAdmin() ? '' : '<details class="card" data-k="imp"' + (opened('imp') ? ' open' : '') + '><summary>ייבוא מהגיליון הישן</summary><p class="muted small">ב-Apps Script של הגרסה הקודמת מריצים את <b>exportForMigration</b>, מעתיקים את ה-JSON מהיומן, ומדביקים כאן. אפשר לייבא שוב בלי ליצור כפילויות.</p>' +
     '<form data-form="import"><textarea id="imp-text" dir="ltr" placeholder="{ &quot;members&quot;: [...], ... }"></textarea><div class="row" style="margin-top:8px"><button class="btn primary" type="submit">ייבוא</button></div></form></details>';
-  return profile + '<div class="card"><div class="bar"><h3>חברי הצוות (' + mem.length + ')</h3></div><ul class="list">' + rows + '</ul></div>' + addForm + bulk + imp;
+  return profile + '<div class="card"><div class="bar"><h3>חברי הצוות (' + mem.length + ')</h3></div><ul class="list">' + rows + '</ul></div>' + addForm + joinCard + bulk + imp;
 }
 
 /* ---------- ייבוא מהגיליון הישן ---------- */
@@ -384,6 +400,17 @@ document.addEventListener('click', async ev => {
   if (a === 'signin') { fire(backend.signIn()); }
   else if (a === 'signout') { await backend.signOut(); }
   else if (a === 'reload') { location.reload(); }
+  else if (a === 'pick-me') {
+    try { await backend.link(S.authUser.uid, id); S.linkId = id; startWatch(); } catch (e) { toast(friendly(e), true); }
+  }
+  else if (a === 'join-gen') { const c = 'gf-' + Math.random().toString(36).slice(2, 8); const i = $('jc-set'); if (i) i.value = c; }
+  else if (a === 'join-copy') {
+    const t = 'היי, האפליקציה של צוות גולדפרב מוכנה: ' + location.origin + '\nנכנסים עם Google, מקלידים את קוד ההצטרפות ' + S.joinCode + ' ובוחרים את השם שלכם. מומלץ גם להתקין למסך הבית.';
+    try { await navigator.clipboard.writeText(t); toast('ההודעה הועתקה'); } catch (e) { toast('לא הצלחתי להעתיק', true); }
+  }
+  else if (a === 'unlink-member') {
+    try { await backend.unlinkMember(id); toast('החשבון נותק. החבר יבחר שוב את שמו בכניסה הבאה'); } catch (e) { toast(friendly(e), true); }
+  }
   else if (a === 'nav') { S.view = b.dataset.v; render(); window.scrollTo(0, 0); }
   else if (a === 'install') { if (S.installEvt) { S.installEvt.prompt(); S.installEvt = null; render(); } }
   else if (a === 'install-hide') { store('thInstallDismissed', '1'); render(); }
@@ -440,6 +467,17 @@ document.addEventListener('change', e => {
 document.addEventListener('submit', async ev => {
   const f = ev.target.closest('[data-form]'); if (!f) return; ev.preventDefault();
   const k = f.dataset.form, v = id => ($(id) || {}).value || '';
+  if (k === 'join-code') {
+    const code = v('jc-code').trim(); if (!code) return;
+    try { await backend.submitCode(S.authUser.uid, code); S.roster = await backend.listRoster(); S.phase = 'pick'; render(); }
+    catch (e) { toast(/permission/.test((e && (e.code || e.message)) || '') ? 'הקוד שגוי' : friendly(e), true); }
+    return;
+  }
+  if (k === 'join-set') {
+    const code = v('jc-set').trim(); if (code.length < 4) return;
+    try { await backend.setJoinCode(code); S.joinCode = code; toast('הקוד נשמר'); scheduleRender(); } catch (e) { toast(friendly(e), true); }
+    return;
+  }
   if (k === 'bootstrap') {
     const name = clean1(v('bs-name')); if (!name) return;
     const id = backend.newId();

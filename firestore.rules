@@ -23,20 +23,46 @@ service cloud.firestore {
     function str(v, max) { return v is string && v.size() > 0 && v.size() <= max; }
     function roleOk(r)   { return r in ['member', 'manager', 'admin']; }
 
-    // ---- קישור משתמש מחובר לחבר צוות (לפי המייל המאומת) ----
+    // ---- קוד הצטרפות: מי שהקליד את הקוד הנוכחי רשאי לראות את רשימת השמות ולבחור "זה אני" (חבר רגיל בלבד) ----
+    function memberOf(id) { return get(/databases/$(database)/documents/members/$(id)).data; }
+    function joinOk() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/joins/$(request.auth.uid))
+        && exists(/databases/$(database)/documents/config/join)
+        && get(/databases/$(database)/documents/joins/$(request.auth.uid)).data.code == get(/databases/$(database)/documents/config/join).data.code;
+    }
+
+    match /config/{id} {
+      allow read: if isAdmin();
+      allow write: if isAdmin() && id == 'join'
+                   && request.resource.data.keys().hasOnly(['code'])
+                   && request.resource.data.code is string
+                   && request.resource.data.code.size() >= 4 && request.resource.data.code.size() <= 40;
+    }
+
+    match /joins/{uid} {
+      allow read, delete: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid
+                   && request.resource.data.keys().hasOnly(['code'])
+                   && exists(/databases/$(database)/documents/config/join)
+                   && request.resource.data.code == get(/databases/$(database)/documents/config/join).data.code;
+    }
+
+    // ---- קישור משתמש מחובר לחבר צוות: לפי המייל המאומת, או (לחבר רגיל בלבד) אחרי קוד הצטרפות ----
     match /users/{uid} {
-      allow read:   if signedIn() && request.auth.uid == uid;
+      allow read:   if (signedIn() && request.auth.uid == uid) || isAdmin();
       allow create: if signedIn() && request.auth.uid == uid
                     && request.resource.data.keys().hasOnly(['memberId'])
                     && request.resource.data.memberId is string
-                    && get(/databases/$(database)/documents/members/$(request.resource.data.memberId)).data.email == request.auth.token.email;
-      allow delete: if signedIn() && request.auth.uid == uid;
+                    && (memberOf(request.resource.data.memberId).email == request.auth.token.email
+                        || (joinOk() && memberOf(request.resource.data.memberId).role == 'member'));
+      allow delete: if (signedIn() && request.auth.uid == uid) || isAdmin();
     }
 
     // ---- חברי צוות ----
     match /members/{id} {
       // מי שלא מקושר עדיין יכול למצוא רק את הרשומה עם המייל שלו
-      allow read: if isOwner() || linked()
+      allow read: if isOwner() || linked() || joinOk()
                   || (signedIn() && resource.data.email == request.auth.token.email);
 
       allow create: if (isAdmin() || (isManager() && request.resource.data.role == 'member'))

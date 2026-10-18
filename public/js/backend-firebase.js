@@ -70,6 +70,20 @@ export const backend = {
   link: (uid, memberId) => setDoc(doc(db, 'users', uid), { memberId }),
   unlink: uid => deleteDoc(doc(db, 'users', uid)),
 
+  /** קוד הצטרפות: שליחת הקוד (השרת מאמת מול הקוד הנוכחי) ואז קריאת רשימת השמות. */
+  submitCode: (uid, code) => setDoc(doc(db, 'joins', uid), { code }),
+  async listRoster() {
+    const s = await getDocs(col('members'));
+    return s.docs.map(d => ({ id: d.id, name: d.data().name, role: d.data().role }));
+  },
+  async getJoinCode() { const d = await getDoc(doc(db, 'config', 'join')); return d.exists() ? d.data().code : ''; },
+  setJoinCode: code => setDoc(doc(db, 'config', 'join'), { code }),
+  /** מנהל-על: מנתק את כל החשבונות המקושרים לחבר צוות, כדי שיבחר מחדש. */
+  async unlinkMember(memberId) {
+    const s = await getDocs(query(col('users'), where('memberId', '==', memberId)));
+    await Promise.all(s.docs.map(d => deleteDoc(d.ref)));
+  },
+
   /** האזנה חיה לכל הנתונים. cb מקבל (kind, rows, pending). */
   watch(cb) {
     const subs = [

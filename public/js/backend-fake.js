@@ -21,6 +21,18 @@ export function makeFake({ delay = 0, user = null, rulesRole = null } = {}) {
     async getLink(uid) { return links[uid] || null; },
     async link(uid, memberId) { links[uid] = memberId; },
     async unlink(uid) { delete links[uid]; },
+    joinCode: '', joined: {},
+    async submitCode(uid, code) {
+      if (!api.joinCode || code !== api.joinCode) { const e = new Error('permission-denied'); e.code = 'permission-denied'; throw e; }
+      api.joined[uid] = code;
+    },
+    async listRoster() {
+      if (!api.joined[(curUser || {}).uid] || api.joined[(curUser || {}).uid] !== api.joinCode) { const e = new Error('permission-denied'); e.code = 'permission-denied'; throw e; }
+      return data.members.map(m => ({ id: m.id, name: m.name, role: m.role }));
+    },
+    async getJoinCode() { return api.joinCode; },
+    async setJoinCode(code) { api.joinCode = code; },
+    async unlinkMember(memberId) { Object.keys(links).forEach(u => { if (links[u] === memberId) delete links[u]; }); },
     watch(cb) { watchers.push(cb); setTimeout(emit, 0); return () => { watchers = watchers.filter(w => w !== cb); }; },
     saveMember(m) { api.calls.push('saveMember'); upsert('members', m); return later(); },
     deleteMember(id) { api.calls.push('deleteMember'); data.members = data.members.filter(m => m.id !== id); return later(); },

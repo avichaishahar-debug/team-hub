@@ -149,7 +149,20 @@ await p.context().setOffline(true); await p.waitForSelector('.offline'); await p
 
 /* ===== 3. משתמשים אחרים: לא מוזמן / חבר רגיל / מנהל ===== */
 const as = async (email, uid) => { await p.evaluate(([e, u]) => { window.__fake.__nextUser = { uid: u, email: e, name: 'x', verified: true }; return window.__fake.signOut().then(() => window.__fake.signIn()); }, [email, uid]); };
-await as('stranger@gmail.com', 'u-x'); await p.waitForSelector('text=עוד לא הוספו אותך'); await p.screenshot({ path: 'shot_notinvited.png' });
+// קוד הצטרפות: מנהל-על קובע קוד במסך הצוות
+await p.click('[data-a="nav"][data-v="team"]'); await p.click('details[data-k="join"] summary'); await p.fill('#jc-set', 'gf-test1'); await p.click('form[data-form="join-set"] button[type=submit]');
+await p.waitForFunction(() => window.__fake.joinCode === 'gf-test1');
+await as('stranger@gmail.com', 'u-x'); await p.waitForSelector('text=הצטרפות לצוות'); await p.screenshot({ path: 'shot_notinvited.png' });
+await p.fill('#jc-code', 'wrong-code'); await p.click('form[data-form="join-code"] button[type=submit]'); await p.waitForSelector('#toast div.err');   // קוד שגוי
+assert.equal(await p.locator('.who').count(), 0);
+await p.fill('#jc-code', 'gf-test1'); await p.click('form[data-form="join-code"] button[type=submit]'); await p.waitForSelector('[data-a="pick-me"]');
+await p.screenshot({ path: 'shot_pick.png' });
+assert.equal(await p.locator('[data-a="pick-me"]', { hasText: 'אביחי שחר' }).count(), 0);   // מנהלים לא מופיעים ברשימה
+await p.click('[data-a="pick-me"]:has-text("עודד מרלא")'); await p.waitForSelector('#nav:not([hidden])');
+assert.equal((await fake()).l['u-x'], await memId('עודד מרלא'));
+await p.click('[data-a="nav"][data-v="team"]'); assert.equal(await p.locator('details[data-k="join"]').count(), 0);   // חבר רגיל לא רואה את הקוד
+// מנהל-על מנתק את הקישור
+await as('avichaishahar@gmail.com', 'u-owner'); await p.waitForSelector('#nav:not([hidden])');
 await as('gil@gmail.com', 'u-gil'); await p.waitForSelector('#nav:not([hidden])');
 assert.equal((await fake()).l['u-gil'], await memId('גיל מזור'));
 await p.click('[data-a="nav"][data-v="expenses"]');
