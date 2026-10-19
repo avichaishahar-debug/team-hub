@@ -53,7 +53,7 @@ assert.equal((await fake()).d.members.length, 17);
 assert.ok((await p.textContent('#app')).includes('חסר לנו יום ההולדת שלך'));
 await p.click('[data-a="goto-bday"]'); await p.waitForSelector('#my-bday'); assert.equal(await p.evaluate(() => document.activeElement.id), 'my-bday');
 await p.click('#nav [data-v="expenses"]');
-await p.click('[data-a="new-toggle"]'); await p.fill('#ne-name', 'סוף שבוע באילת'); await p.fill('#ne-date', '2026-11-05');
+await p.click('[data-a="create-toggle"]'); await p.click('[data-a="create-mode"][data-v="meetup"]'); await p.fill('#ne-name', 'סוף שבוע באילת'); await p.fill('#ne-date', '2026-11-05');
 let t0 = Date.now(); await p.click('form[data-form="new-meetup"] button[type=submit]');
 await p.waitForSelector('[data-a="att-toggle"]', { timeout: 400 }); assert.ok(Date.now() - t0 < 500, 'meetup appears before the server answers');
 await sleep(1000);
@@ -177,7 +177,7 @@ const as = async (email, uid) => { await p.evaluate(([e, u]) => { window.__fake.
 // קוד הצטרפות: מנהל-על קובע קוד במסך הצוות
 // ---- סקר מועד: יצירה, הצבעה, פתיחת מפגש מהסקר ----
 await p.click('[data-a="nav"][data-v="expenses"]'); if (await p.locator('[data-a="back"]').count()) await p.click('[data-a="back"]');
-await p.click('[data-a="poll-new-toggle"]'); await p.fill('#np-name', 'סופש בצפון'); await p.fill('#np-days', '2');
+await p.click('[data-a="create-toggle"]'); await p.fill('#np-name', 'סופש בצפון'); await p.fill('#np-days', '2');
 const pd = p.locator('.np-date'); await pd.nth(0).fill('2026-12-10'); await pd.nth(1).fill('2026-12-17');
 await p.click('form[data-form="new-poll"] button[type=submit]'); await p.waitForSelector('[data-a="vote"]'); await sleep(900);
 let poll = (await fake()).d.polls[0]; assert.equal(poll.options.length, 2); assert.equal(poll.days, 2);
@@ -205,7 +205,7 @@ await as('avichaishahar@gmail.com', 'u-owner'); await p.waitForSelector('#nav:no
 await as('gil@gmail.com', 'u-gil'); await p.waitForSelector('#nav:not([hidden])');
 assert.equal((await fake()).l['u-gil'], await memId('גיל מזור'));
 await p.click('[data-a="nav"][data-v="expenses"]');
-assert.equal(await p.locator('[data-a="new-toggle"]').count(), 0);
+await p.click('[data-a="create-toggle"]'); assert.equal(await p.locator('[data-a="create-mode"]').count(), 0); assert.ok(await p.locator('form[data-form="new-poll"]').count() === 1); await p.click('[data-a="create-toggle"]');   // חבר רגיל: רק סקר
 await p.locator('.ev', { hasText: 'סוף שבוע' }).click(); await p.click('[data-a="tab"][data-t="ppl"]');
 assert.equal(await p.locator('[data-a="att-toggle"]').count(), 0); assert.ok(await p.locator('text=רק מנהל יכול לסמן נוכחות').count());
 await p.click('[data-a="tab"][data-t="exp"]'); assert.ok(await p.locator('.fab').isVisible());          // any member can add an expense
@@ -213,7 +213,7 @@ await p.click('.xmain >> nth=0'); assert.equal(await p.locator('[data-a="edit-ex
 await p.click('[data-a="nav"][data-v="team"]'); assert.equal(await p.locator('[data-a="add-member-toggle"]').count(), 0);
 assert.equal(await p.locator('details[data-k="imp"]').count(), 0);
 await as('yaron@gmail.com', 'u-yaron'); await p.waitForSelector('#nav:not([hidden])');                  // linked by the email we pasted
-await p.click('[data-a="nav"][data-v="expenses"]'); await p.waitForSelector('[data-a="new-toggle"]');   // manager sees the manager tools
+await p.click('[data-a="nav"][data-v="expenses"]'); await p.click('[data-a="create-toggle"]'); await p.waitForSelector('[data-a="create-mode"]'); await p.click('[data-a="create-toggle"]');   // manager sees the manager tools
 await p.locator('.ev', { hasText: 'סוף שבוע' }).click(); await p.click('[data-a="tab"][data-t="ppl"]'); assert.ok(await p.locator('[data-a="att-toggle"]').count() > 0);
 await p.click('[data-a="nav"][data-v="team"]'); assert.equal(await p.locator('details[data-k="imp"]').count(), 0); assert.equal(await p.locator('[data-a="em-edit"]').count() > 0, true);
 await p.screenshot({ path: 'shot_manager.png' });

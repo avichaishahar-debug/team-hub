@@ -279,14 +279,31 @@ function pollCard(p) {
   return '<li><button class="ev" data-a="poll-open" data-id="' + esc(p.id) + '"><b>🗳 ' + esc(p.name) + '</b><span class="muted small">' + p.options.length + ' תאריכים · ' + p.days + ' ימים · ' + n + ' הצביעו</span>' +
     (p.status === 'closed' ? '<span class="small muted">הסקר נסגר</span>' : voted ? '<span class="small paid-tag">הצבעת ✓</span>' : '<span class="small need-vote">עוד לא הצבעת</span>') + '</button></li>';
 }
+
+/** פקד יצירה אחד: בוחרים בין סקר מועד (לכולם) ליצירת מפגש (למנהלים) */
+function meetupFormHtml() {
+  const d = S.cDraft || {};
+  return '<form data-form="new-meetup"><div class="grid">' +
+    '<label>שם המפגש<input id="ne-name" required maxlength="80" value="' + esc(d.name || '') + '" placeholder="למשל: סוף שבוע באילת"></label>' +
+    '<label>תאריך התחלה<input type="date" id="ne-date" value="' + esc(d.date || todayStr()) + '" required></label>' +
+    '<label>מספר ימים<input type="number" id="ne-days" min="1" max="' + MAX_DAYS + '" value="' + esc(d.days || 3) + '" required></label></div>' +
+    '<div class="row"><button class="btn primary" type="submit">יצירת מפגש</button><button class="btn" type="button" data-a="create-toggle">ביטול</button></div></form>';
+}
+function createForm() {
+  const mode = canEdit() ? (S.createMode || 'poll') : 'poll';
+  const seg = canEdit() ? '<div class="seg" role="radiogroup">' + [['poll', '🗳 סקר מועד'], ['meetup', '📅 מפגש']].map(([k, l]) =>
+    '<button type="button" class="btn' + (mode === k ? ' primary' : '') + '" data-a="create-mode" data-v="' + k + '">' + l + '</button>').join('') + '</div>' : '';
+  const hint = mode === 'poll' ? '<p class="muted small">שואלים את הצוות מתי נוח, ואחר כך מנהל פותח מפגש מהתוצאה.</p>' : '<p class="muted small">מפגש עם תאריך קבוע.</p>';
+  return '<div class="card"><h3>יצירה חדשה</h3>' + seg + hint + (mode === 'poll' ? pollFormHtml() : meetupFormHtml()) + '</div>';
+}
 function pollFormHtml() {
   const dates = S.pollDates || ['', '', ''];
-  return '<form class="card" data-form="new-poll"><h3>סקר מועד חדש</h3><div class="grid">' +
-    '<label>שם המפגש<input id="np-name" required maxlength="80" value="' + esc((S.pollDraft || {}).name || '') + '" placeholder="למשל: סוף שבוע בצפון"></label>' +
-    '<label>מספר ימים<input type="number" id="np-days" min="1" max="' + MAX_DAYS + '" value="' + esc((S.pollDraft || {}).days || 3) + '" required></label></div>' +
+  return '<form data-form="new-poll"><div class="grid">' +
+    '<label>שם המפגש<input id="np-name" required maxlength="80" value="' + esc((S.cDraft || {}).name || '') + '" placeholder="למשל: סוף שבוע בצפון"></label>' +
+    '<label>מספר ימים<input type="number" id="np-days" min="1" max="' + MAX_DAYS + '" value="' + esc((S.cDraft || {}).days || 3) + '" required></label></div>' +
     '<label>תאריכי התחלה אפשריים</label>' + dates.map((d, i) => '<input type="date" class="np-date" value="' + esc(d) + '" aria-label="תאריך ' + (i + 1) + '">').join('') +
     '<div class="row">' + (dates.length < 8 ? '<button class="btn sm" type="button" data-a="poll-add-date">＋ עוד תאריך</button>' : '') + '</div>' +
-    '<div class="row"><button class="btn primary" type="submit">יצירת סקר ושיתוף</button><button class="btn" type="button" data-a="poll-new-toggle">ביטול</button></div></form>';
+    '<div class="row"><button class="btn primary" type="submit">יצירת סקר ושיתוף</button><button class="btn" type="button" data-a="create-toggle">ביטול</button></div></form>';
 }
 function pollView() {
   const p = curPoll(), closed = p.status === 'closed', mine = (S.me && (p.votes || {})[S.me.id]) || {};
@@ -322,17 +339,10 @@ function homeView() {
     return '<li><button class="ev" data-a="open" data-id="' + esc(e.id) + '"><b>' + esc(e.name) + '</b><span class="muted small">' + range(e) + ' · ' + e.days + ' ימים</span>' +
       '<span class="small">' + n + ' משתתפים · ' + ex.length + ' הוצאות · ' + fmt(tot) + '</span></button></li>';
   }).join('') + '</ul>' : '<p class="muted">עדיין אין מפגשים. ' + (canEdit() ? 'פתח את המפגש הראשון.' : 'מנהל צריך לפתוח מפגש חדש.') + '</p>';
-  const form = !canEdit() ? '' : S.newMeetup ?
-    '<form class="card" data-form="new-meetup"><h3>מפגש חדש</h3><div class="grid">' +
-    '<label>שם המפגש<input id="ne-name" required maxlength="80" placeholder="למשל: סוף שבוע באילת"></label>' +
-    '<label>תאריך התחלה<input type="date" id="ne-date" value="' + todayStr() + '" required></label>' +
-    '<label>מספר ימים<input type="number" id="ne-days" min="1" max="' + MAX_DAYS + '" value="3" required></label></div>' +
-    '<div class="row"><button class="btn primary" type="submit">יצירת מפגש</button><button class="btn" type="button" data-a="new-toggle">ביטול</button></div></form>'
-    : '<div><button class="btn primary" data-a="new-toggle">מפגש חדש</button></div>';
   const op = openPolls();
-  const pollsSec = (S.newPoll ? pollFormHtml() : '<div><button class="btn" data-a="poll-new-toggle">🗳 סקר מועד חדש</button></div>') +
+  const pollsSec = (S.creating ? createForm() : '<div><button class="btn primary" data-a="create-toggle">＋ חדש</button></div>') +
     (op.length ? '<div class="card"><h3>סקרים פתוחים</h3><ul class="events">' + op.map(pollCard).join('') + '</ul></div>' : '');
-  return installCard() + form + pollsSec + cards;
+  return installCard() + pollsSec + cards;
 }
 
 /* ---------- מפגש ---------- */
@@ -608,8 +618,13 @@ document.addEventListener('click', async ev => {
   else if (a === 'open-meetup') { S.view = 'expenses'; store('thLast', id); Object.assign(S, { meetupId: id, tab: 'info', editExp: null, formOpen: false, draft: null, openExp: null, showAll: false, day: 1, confirm: '', editMeetup: false }); render(); window.scrollTo(0, 0); }
   else if (a === 'open-settle') { S.view = 'expenses'; store('thLast', id); Object.assign(S, { meetupId: id, tab: 'set', editExp: null, formOpen: false, draft: null, openExp: null, confirm: '', editMeetup: false }); render(); window.scrollTo(0, 0); }
   else if (a === 'photo-rm') { const { photo, ...rest } = S.me; fire(backend.saveMember(rest)); toast('התמונה הוסרה'); }
-  else if (a === 'poll-new-toggle') { S.newPoll = !S.newPoll; S.pollDates = null; render(); }
-  else if (a === 'poll-add-date') { S.pollDates = Array.from(document.querySelectorAll('.np-date')).map(i => i.value).concat(['']); const nm = $('np-name'), dy = $('np-days'); S.pollDraft = { name: nm && nm.value, days: dy && dy.value }; render(); }
+  else if (a === 'create-toggle') { S.creating = !S.creating; S.pollDates = null; S.cDraft = null; S.createMode = 'poll'; render(); }
+  else if (a === 'create-mode') {
+    const g = i => { const e = $(i); return e ? e.value : undefined; };
+    S.cDraft = { name: g('np-name') ?? g('ne-name'), days: g('np-days') ?? g('ne-days'), date: g('ne-date') };
+    S.createMode = b.dataset.v; render();
+  }
+  else if (a === 'poll-add-date') { S.pollDates = Array.from(document.querySelectorAll('.np-date')).map(i => i.value).concat(['']); const nm = $('np-name'), dy = $('np-days'); S.cDraft = { name: nm && nm.value, days: dy && dy.value }; render(); }
   else if (a === 'poll-open') { S.view = 'expenses'; Object.assign(S, { pollId: id, confirm: '' }); render(); window.scrollTo(0, 0); }
   else if (a === 'poll-back') { S.pollId = null; S.confirm = ''; render(); }
   else if (a === 'vote') { const p = curPoll(); if (p && S.me) fire(backend.patchPoll(p.id, { ['votes.' + S.me.id + '.' + b.dataset.opt]: b.dataset.v })); }
@@ -655,7 +670,6 @@ document.addEventListener('click', async ev => {
   else if (a === 'open') { S.pollId = null; store('thLast', id); Object.assign(S, { meetupId: id, tab: 'info', editExp: null, formOpen: false, draft: null, openExp: null, showAll: false, day: 1, confirm: '', editMeetup: false }); render(); window.scrollTo(0, 0); }
   else if (a === 'back') { S.meetupId = null; render(); }
   else if (a === 'tab') { S.tab = b.dataset.t; render(); }
-  else if (a === 'new-toggle') { S.newMeetup = !S.newMeetup; render(); }
   else if (a === 'edit-meetup-toggle') { S.editMeetup = !S.editMeetup; S.confirm = ''; render(); }
   else if (a === 'del-meetup') {
     if (S.confirm !== 'del-meetup') { S.confirm = 'del-meetup'; render(); return; }
@@ -734,7 +748,7 @@ document.addEventListener('submit', async ev => {
     if (!(days >= 1 && days <= MAX_DAYS)) { toast('מספר הימים חייב להיות בין 1 ל-' + MAX_DAYS, true); return; }
     const m = { id: backend.newId(), name, startDate: v('ne-date'), days, attendance: {}, createdAt: Date.now() };
     fire(backend.saveMeetup(m));
-    Object.assign(S, { newMeetup: false, meetupId: m.id, tab: 'ppl', day: 1, formOpen: false, draft: null, openExp: null, showAll: false });
+    Object.assign(S, { creating: false, cDraft: null, meetupId: m.id, tab: 'ppl', day: 1, formOpen: false, draft: null, openExp: null, showAll: false });
     store('thLast', m.id); toast('המפגש נוצר. סמנו מי הגיע'); window.scrollTo(0, 0);
     // המפגש עוד לא הגיע מהמאזין: מציגים אותו מיד
     if (!S.meetups.some(x => x.id === m.id)) S.meetups.push(m);
@@ -749,7 +763,7 @@ document.addEventListener('submit', async ev => {
     const p = { id: backend.newId(), name, days, options: dates.map((d, i) => ({ id: 'o' + (i + 1), start: d })), votes: {}, createdById: S.me.id, status: 'open', createdAt: Date.now() };
     fire(backend.savePoll(p));
     if (!S.polls.some(x => x.id === p.id)) S.polls.push(p);
-    Object.assign(S, { newPoll: false, pollDates: null, pollDraft: null, pollId: p.id, view: 'expenses' }); toast('הסקר נוצר. אפשר לשתף בוואטסאפ'); window.scrollTo(0, 0); render();
+    Object.assign(S, { creating: false, pollDates: null, cDraft: null, pollId: p.id, view: 'expenses' }); toast('הסקר נוצר. אפשר לשתף בוואטסאפ'); window.scrollTo(0, 0); render();
   }
   else if (k === 'feedback') {
     const e = curMeetup(), r = document.querySelector('input[name="fbs"]:checked');
