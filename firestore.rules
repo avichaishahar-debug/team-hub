@@ -136,6 +136,21 @@ service cloud.firestore {
       allow delete: if isManager() || (linked() && (resource.data.fromId == myId() || resource.data.toId == myId()));
     }
 
+    // ---- סקרי מועד: כל חבר מקושר פותח סקר, מצביע רק על שמו. יוצר הסקר או מנהל מנהלים אותו ----
+    match /polls/{id} {
+      allow read: if linked() || isOwner();
+      allow create: if linked() && request.resource.data.createdById == myId()
+                    && str(request.resource.data.name, 80)
+                    && request.resource.data.days is int && request.resource.data.days >= 1 && request.resource.data.days <= 14
+                    && request.resource.data.options is list && request.resource.data.options.size() >= 1 && request.resource.data.options.size() <= 8;
+      allow update: if isManager()
+                    || (linked() && resource.data.createdById == myId() && request.resource.data.createdById == resource.data.createdById)
+                    || (linked() && resource.data.get('status', 'open') == 'open'
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes'])
+                        && request.resource.data.get('votes', {}).diff(resource.data.get('votes', {})).affectedKeys().hasOnly([myId()]));
+      allow delete: if isManager() || (linked() && resource.data.createdById == myId());
+    }
+
     match /{other=**} { allow read, write: if false; }
   }
 }

@@ -1,11 +1,11 @@
 // backend מדומה בזיכרון, לבדיקות ולפיתוח בלי Firebase. אותו ממשק כמו backend-firebase.js.
 // מדמה גם השהיית שרת: האזנות מקבלות עדכון מקומי מיד, וההבטחה מסתיימת אחרי ההשהיה.
 export function makeFake({ delay = 0, user = null, rulesRole = null } = {}) {
-  const data = { members: [], meetups: [], expenses: [], payments: [] };
+  const data = { members: [], meetups: [], expenses: [], payments: [], polls: [] };
   const links = {};
   let watchers = [], authCb = null, curUser = user, n = 0, pendingCount = 0;
   const clone = o => JSON.parse(JSON.stringify(o));
-  const emit = () => watchers.forEach(cb => ['members', 'meetups', 'expenses', 'payments'].forEach(k => cb(k, clone(data[k]), pendingCount > 0, false)));
+  const emit = () => watchers.forEach(cb => ['members', 'meetups', 'expenses', 'payments', 'polls'].forEach(k => cb(k, clone(data[k]), pendingCount > 0, false)));
   const later = fn => new Promise((res, rej) => {
     pendingCount++; emit();
     setTimeout(() => { try { res(fn ? fn() : undefined); } catch (e) { rej(e); } finally { pendingCount--; emit(); } }, delay);
@@ -34,6 +34,17 @@ export function makeFake({ delay = 0, user = null, rulesRole = null } = {}) {
     },
     async getJoinCode() { return api.joinCode; },
     async setJoinCode(code) { api.joinCode = code; },
+    savePoll(p) { api.calls.push('savePoll'); upsert('polls', { votes: {}, ...p, createdAt: p.createdAt || Date.now() }); return later(); },
+    patchPoll(id, patch) {
+      api.calls.push('patchPoll');
+      const p = data.polls.find(x => x.id === id); if (!p) return Promise.reject(new Error('missing'));
+      Object.keys(patch).forEach(k => {
+        if (k.startsWith('votes.')) { const [, mid, oid] = k.split('.'); p.votes = p.votes || {}; p.votes[mid] = p.votes[mid] || {}; if (patch[k] === null) delete p.votes[mid][oid]; else p.votes[mid][oid] = patch[k]; }
+        else if (patch[k] === null) delete p[k]; else p[k] = patch[k];
+      });
+      return later();
+    },
+    deletePoll(id) { api.calls.push('deletePoll'); data.polls = data.polls.filter(p => p.id !== id); return later(); },
     savePayment(x) { api.calls.push('savePayment'); upsert('payments', x); return later(); },
     deletePayment(id) { api.calls.push('deletePayment'); data.payments = data.payments.filter(p => p.id !== id); return later(); },
     async listLinked() { return Object.keys(links).map(u => ({ memberId: links[u], email: api.linkEmails[u] || '' })); },

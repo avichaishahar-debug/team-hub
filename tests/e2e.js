@@ -175,6 +175,19 @@ await p.context().setOffline(true); await p.waitForSelector('.offline'); await p
 /* ===== 3. משתמשים אחרים: לא מוזמן / חבר רגיל / מנהל ===== */
 const as = async (email, uid) => { await p.evaluate(([e, u]) => { window.__fake.__nextUser = { uid: u, email: e, name: 'x', verified: true }; return window.__fake.signOut().then(() => window.__fake.signIn()); }, [email, uid]); };
 // קוד הצטרפות: מנהל-על קובע קוד במסך הצוות
+// ---- סקר מועד: יצירה, הצבעה, פתיחת מפגש מהסקר ----
+await p.click('[data-a="nav"][data-v="expenses"]'); if (await p.locator('[data-a="back"]').count()) await p.click('[data-a="back"]');
+await p.click('[data-a="poll-new-toggle"]'); await p.fill('#np-name', 'סופש בצפון'); await p.fill('#np-days', '2');
+const pd = p.locator('.np-date'); await pd.nth(0).fill('2026-12-10'); await pd.nth(1).fill('2026-12-17');
+await p.click('form[data-form="new-poll"] button[type=submit]'); await p.waitForSelector('[data-a="vote"]'); await sleep(900);
+let poll = (await fake()).d.polls[0]; assert.equal(poll.options.length, 2); assert.equal(poll.days, 2);
+await p.click('[data-a="vote"][data-opt="o1"][data-v="yes"]'); await p.click('[data-a="vote"][data-opt="o2"][data-v="maybe"]'); await sleep(900);
+poll = (await fake()).d.polls[0]; assert.deepEqual(Object.values(poll.votes)[0], { o1: 'yes', o2: 'maybe' });
+const nm0 = (await fake()).d.meetups.length;
+await p.click('[data-a="poll-to-meetup"][data-opt="o1"]'); await sleep(900);
+const f1 = await fake(); assert.equal(f1.d.meetups.length, nm0 + 1); assert.equal(f1.d.meetups.at(-1).startDate, '2026-12-10'); assert.equal(f1.d.polls[0].status, 'closed');
+await p.click('[data-a="back"]');
+
 await p.click('[data-a="nav"][data-v="team"]'); await p.click('details[data-k="join"] summary'); await p.fill('#jc-set', 'gf-test1'); await p.click('form[data-form="join-set"] button[type=submit]');
 await p.waitForFunction(() => window.__fake.joinCode === 'gf-test1');
 await as('stranger@gmail.com', 'u-x'); await p.waitForSelector('text=הצטרפות לצוות'); await p.screenshot({ path: 'shot_notinvited.png' });

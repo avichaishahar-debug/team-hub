@@ -272,3 +272,10 @@ body{min-height:100lvh;box-sizing:border-box}
 .fb-stars label:has(input:checked) span,.fb-stars label:has(~ label input:checked) span{color:#ffb84a}
 .fb-item{background:#ffffff0a;border-radius:10px;padding:8px 10px;margin:6px 0;white-space:pre-wrap}
 .top #sync:not(.busy):not(.err){color:#7dffc4;font-weight:700}
+
+/* ---- סקרי מועד ---- */
+.need-vote{color:#ffb84a;font-weight:700}
+.poll-opt.top{border-color:#2dd4a099}
+.tally{display:flex;gap:14px;font-weight:700;margin:4px 0 8px}
+.tally .yes{color:#2dd4a0}.tally .maybe{color:#ffb84a}.tally .no{color:#ff7a7a}
+.np-date{display:block;width:100%;margin:6px 0}

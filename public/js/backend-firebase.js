@@ -94,7 +94,8 @@ export const backend = {
       ['members', r => ({ id: r.id, ...r.data() })],
       ['meetups', r => { const x = r.data(); return { id: r.id, ...x, createdAt: stamp(x.createdAt) }; }],
       ['expenses', r => { const x = r.data(); return { id: r.id, ...x, createdAt: stamp(x.createdAt) }; }],
-      ['payments', r => ({ id: r.id, ...r.data() })]
+      ['payments', r => ({ id: r.id, ...r.data() })],
+      ['polls', r => { const x = r.data(); return { id: r.id, ...x, createdAt: stamp(x.createdAt) }; }]
     ].map(([name, map]) => onSnapshot(col(name), { includeMetadataChanges: true },
       s => cb(name, s.docs.map(map), s.metadata.hasPendingWrites, s.metadata.fromCache),
       err => cb(name, null, false, false, err)));
@@ -145,6 +146,15 @@ export const backend = {
   /** סימון העברה כשולמה. id = meetupId__fromId__toId */
   savePayment(x) { const { id, ...d } = x; return setDoc(doc(db, 'payments', id), clean({ ...d, at: serverTimestamp() })); },
   deletePayment: id => deleteDoc(doc(db, 'payments', id)),
+
+  /** סקר מועד. votes.<memberId>.<optionId> = yes|maybe|no */
+  savePoll(p) { const { id, createdAt, ...d } = p; return setDoc(doc(db, 'polls', id), clean({ ...d, createdAt: createdAt ? new Date(createdAt) : serverTimestamp() })); },
+  patchPoll(id, patch) {
+    const p = {};
+    Object.keys(patch).forEach(k => { p[k] = patch[k] === null ? deleteField() : patch[k]; });
+    return updateDoc(doc(db, 'polls', id), p);
+  },
+  deletePoll: id => deleteDoc(doc(db, 'polls', id)),
 
   /** כתיבה בצרור (ייבוא). ops: [{c:'members'|'meetups'|'expenses', id, data}] */
   async batchSet(ops) {
