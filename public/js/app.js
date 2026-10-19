@@ -535,7 +535,9 @@ function linkBadge(m) {
   return '<span class="pos">✓ מחובר' + (emails.length ? ' עם <span dir="ltr">' + emails.map(esc).join(', ') + '</span>' : '') + '</span>';
 }
 function teamView() {
-  const me = S.me, mem = sortedMembers();
+  // למנהל-על: מי שכבר מחובר לחשבון Google עולה לראש הרשימה (שאר הרשימה לפי א-ב)
+  const connected = new Set((isAdmin() ? S.linked || [] : []).map(l => l.memberId));
+  const me = S.me, mem = sortedMembers().sort((x, y) => (connected.has(y.id) ? 1 : 0) - (connected.has(x.id) ? 1 : 0));
   const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
   const profile = '<div class="card"><div class="mrow" style="border:0">' + avatarOf(me) + '<span class="nm"><b>' + esc(me.name) + '</b><small dir="ltr" style="text-align:right">' + esc(S.authUser.email) + '</small></span><span class="badge">' + roleLabel(isOwner() ? 'admin' : me.role) + '</span></div>' +
     '<div class="row photo-row"><label class="btn sm" for="my-photo">' + (me.photo ? 'החלפת תמונה' : 'הוספת תמונה') + '</label><input type="file" id="my-photo" accept="image/*" hidden>' + (me.photo ? '<button class="btn link sm" data-a="photo-rm">הסרה</button>' : '') + '</div>' +
